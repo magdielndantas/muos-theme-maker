@@ -43,19 +43,20 @@ export const importThemeFromZip = async (file: File) => {
       const k = key.trim().toUpperCase();
 
       switch (k) {
-        case 'BACKGROUND_COLOR':
+        case 'BACKGROUND':
           newColors.background = parseHex(val);
           break;
-        case 'PRIMARY_COLOR':
+        case 'LIST_FOCUS_BACKGROUND':
+        case 'BAR_PROGRESS_ACTIVE_BACKGROUND':
           newColors.primaryAccent = parseHex(val);
           break;
         case 'BACKGROUND_ALPHA':
           newColors.backgroundAlpha = parseInt(val, 10);
           break;
-        case 'TEXT_COLOR_ACTIVE':
+        case 'LIST_FOCUS_TEXT':
           newList.textColorActive = parseHex(val);
           break;
-        case 'TEXT_COLOR_INACTIVE':
+        case 'LIST_DEFAULT_TEXT':
           newList.textColorInactive = parseHex(val);
           break;
       }
@@ -64,6 +65,9 @@ export const importThemeFromZip = async (file: File) => {
     const store = useThemeStore.getState();
     if (Object.keys(newColors).length > 0) store.setColors(newColors);
     if (Object.keys(newList).length > 0) store.setList(newList);
+    
+    // Save the intact original zip in memory for exportation retaining all assets
+    store.setLoadedZip(zip);
 
     return true;
   } catch (error) {

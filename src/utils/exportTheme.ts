@@ -2,30 +2,71 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { useThemeStore } from '../store/themeStore';
 
+const stripHex = (hex: string) => hex.replace('#', '').toUpperCase();
+
 export const exportTheme = async (themeName: string = 'MyTheme') => {
   const state = useThemeStore.getState();
-  const zip = new JSZip();
+  
+  // Phase 4: Export with exact original Archival Preservation
+  if (state.loadedZip) {
+    const zip = state.loadedZip; 
+    
+    const iniFile = zip.file("scheme/global.ini") || zip.file("scheme/default.ini");
+    if (iniFile) {
+      let iniContent = await iniFile.async("string");
+      
+      const updateKey = (key: string, val: string) => {
+        // Regex replacing key = old value with key = new value preserving structure
+        const regex = new RegExp(`(^|\\n)(\\s*${key}\\s*=).*`, 'g');
+        iniContent = iniContent.replace(regex, `$1$2 ${val}`);
+      };
 
-  // muOS uses HEX with Alpha (0-255) for its components, usually set in multiple sections
-  const globalIniContent = `[global]
-BACKGROUND_COLOR=${state.colors.background}
-BACKGROUND_ALPHA=${state.colors.backgroundAlpha}
-PRIMARY_COLOR=${state.colors.primaryAccent}
+      const { colors, list } = state;
 
-[list]
-TEXT_COLOR_ACTIVE=${state.list.textColorActive}
-TEXT_COLOR_INACTIVE=${state.list.textColorInactive}
-`;
+      // Update Native Keys securely
+      updateKey('BACKGROUND', stripHex(colors.background));
+      updateKey('BACKGROUND_ALPHA', String(colors.backgroundAlpha));
+      
+      updateKey('LIST_FOCUS_BACKGROUND', stripHex(colors.primaryAccent));
+      updateKey('BAR_PROGRESS_ACTIVE_BACKGROUND', stripHex(colors.primaryAccent));
+      
+      updateKey('LIST_FOCUS_TEXT', stripHex(list.textColorActive));
+      updateKey('LIST_DEFAULT_TEXT', stripHex(list.textColorInactive));
 
-  // 1. Create the scheme directory and inject the ini file
-  const schemeFolder = zip.folder("scheme");
-  if (schemeFolder) {
-    schemeFolder.file("global.ini", globalIniContent);
+      // Inject manipulated content back into zip buffer
+      if (iniFile.name.includes("default.ini")) {
+        zip.file("scheme/default.ini", iniContent);
+      } else {
+        zip.file("scheme/global.ini", iniContent);
+      }
+    }
+
+    const blob = await zip.generateAsync({ type: "blob" });
+    saveAs(blob, `${themeName}.muxthm`);
+    return;
   }
 
-  // 2. Generate the package as a zip archive
-  const blob = await zip.generateAsync({ type: "blob" });
+  // Phase 2 fallback: Creating a blind template from scratch if no theme imported before
+  const zip = new JSZip();
+  const schemeFolder = zip.folder("scheme");
   
-  // 3. Trigger download mimicking a muxthm extension
+  const fbBg = stripHex(state.colors.background);
+  const fbPr = stripHex(state.colors.primaryAccent);
+  
+  const globalIniContent = `[background]
+BACKGROUND = ${fbBg}
+BACKGROUND_ALPHA = ${state.colors.backgroundAlpha}
+
+[list]
+LIST_DEFAULT_TEXT = ${stripHex(state.list.textColorInactive)}
+LIST_FOCUS_TEXT = ${stripHex(state.list.textColorActive)}
+LIST_FOCUS_BACKGROUND = ${fbPr}
+
+[bar]
+BAR_PROGRESS_ACTIVE_BACKGROUND = ${fbPr}
+`;
+
+  if (schemeFolder) schemeFolder.file("global.ini", globalIniContent);
+  const blob = await zip.generateAsync({ type: "blob" });
   saveAs(blob, `${themeName}.muxthm`);
 };
