@@ -14,9 +14,10 @@ import { exportTheme } from "@/utils/exportTheme";
 import { importThemeFromZip } from "@/utils/importTheme";
 
 export default function ThemeMakerStudio() {
-  const { colors, list, setColors, setList } = useThemeStore();
+  const { colors, list, assets, setColors, setList, setAssets } = useThemeStore();
   const [themeName, setThemeName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wallInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
     exportTheme(themeName || "CustomTheme");
@@ -29,6 +30,17 @@ export default function ThemeMakerStudio() {
       if (success && file.name) {
         setThemeName(file.name.replace(/\.[^/.]+$/, ""));
       }
+    }
+  };
+
+  const handleWallUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAssets({ wallpaper: reader.result as string });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -169,10 +181,15 @@ export default function ThemeMakerStudio() {
           <div className="flex-1 flex items-center justify-center">
             {/* Simulation of Handheld Screen */}
             <div 
-              className="relative shadow-2xl rounded-sm border border-neutral-800 overflow-hidden ring-4 ring-neutral-900"
-              style={{ width: "640px", height: "480px", backgroundColor: colors.background }}
+              className="relative shadow-2xl rounded-sm border border-neutral-800 overflow-hidden ring-4 ring-neutral-900 bg-cover bg-center"
+              style={{ 
+                width: "640px", 
+                height: "480px", 
+                backgroundColor: colors.background,
+                backgroundImage: assets.wallpaper ? `url(${assets.wallpaper})` : 'none'
+              }}
             >
-              <div className="absolute inset-0 bg-black" style={{ opacity: 1 - (colors.backgroundAlpha / 255) }} />
+              <div className="absolute inset-0 bg-black mix-blend-multiply" style={{ opacity: 1 - (colors.backgroundAlpha / 255) }} />
               {/* muOS Mock UI Header */}
               <div className="absolute top-0 w-full h-12 bg-black/40 backdrop-blur-md flex items-center justify-between px-4 border-b border-white/10 shrink-0 z-10">
                  <span className="text-white font-bold tracking-widest text-sm">muOS</span>
@@ -215,9 +232,29 @@ export default function ThemeMakerStudio() {
                 
                 <div className="space-y-3">
                   <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Background (Wall)</h3>
-                  <div className="aspect-video bg-neutral-800 rounded-lg border-2 border-dashed border-neutral-700 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-neutral-500 transition-colors">
-                     <ImageIcon className="w-6 h-6 text-neutral-500" />
-                     <span className="text-xs text-neutral-400">Click to upload default.png</span>
+                  <input 
+                    type="file" 
+                    ref={wallInputRef} 
+                    onChange={handleWallUpload} 
+                    accept="image/png, image/jpeg" 
+                    className="hidden" 
+                  />
+                  <div 
+                    onClick={() => wallInputRef.current?.click()}
+                    className="aspect-video bg-neutral-800 rounded-lg border-2 border-dashed border-neutral-700 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-neutral-500 transition-colors bg-cover bg-center relative overflow-hidden"
+                    style={{ backgroundImage: assets.wallpaper ? `url(${assets.wallpaper})` : 'none' }}
+                  >
+                     {!assets.wallpaper && (
+                       <>
+                         <ImageIcon className="w-6 h-6 text-neutral-500" />
+                         <span className="text-xs text-neutral-400">Click to upload image</span>
+                       </>
+                     )}
+                     {assets.wallpaper && (
+                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                         <span className="text-xs text-white font-medium">Replace Image</span>
+                       </div>
+                     )}
                   </div>
                 </div>
 

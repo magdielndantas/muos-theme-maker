@@ -41,6 +41,18 @@ export const exportTheme = async (themeName: string = 'MyTheme') => {
       }
     }
 
+    // Inject Custom Assets if they exist
+    if (state.assets.wallpaper) {
+      // Extract base64 part from "data:image/png;base64,....."
+      const base64Data = state.assets.wallpaper.split(',')[1];
+      if (base64Data) {
+        // MuOS reads backgrounds from these generic paths
+        zip.file("640x480/image/wall/default.png", base64Data, { base64: true });
+        zip.file("720x480/image/wall/default.png", base64Data, { base64: true });
+        zip.file("720x720/image/wall/default.png", base64Data, { base64: true });
+      }
+    }
+
     const blob = await zip.generateAsync({ type: "blob" });
     saveAs(blob, `${themeName}.muxthm`);
     return;
