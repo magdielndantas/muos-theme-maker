@@ -20,6 +20,7 @@ import {
   Cpu,
   Film,
   CheckCircle2,
+  XCircle,
   Globe,
   Plus,
   Trash2,
@@ -36,6 +37,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { SCHEME_GROUPS } from "@/data/schemeGroups";
 import { GLOBAL_GLYPHS } from "@/data/muosGlyphs";
+
+// Toast notification state type
+type ToastType = { message: string; kind: "success" | "error" } | null;
 
 // Dimensions will be dynamic based on resolution
 
@@ -97,6 +101,13 @@ export default function ThemeMakerStudio() {
   const screen = getActiveScreen();
   const sc = isGlobalMode ? globalScheme : getEffectiveScheme(activeScreenId);
   const def = MUOS_SCREENS.find((d) => d.id === activeScreenId);
+
+  // Toast notification
+  const [toast, setToast] = useState<ToastType>(null);
+  const showToast = useCallback((message: string, kind: "success" | "error") => {
+    setToast({ message, kind });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
 
   const handleSchemeChange = (updates: Partial<ScreenScheme>) => {
     if (isGlobalMode) {
@@ -240,23 +251,62 @@ export default function ThemeMakerStudio() {
     const screenDef = MUOS_SCREENS.find(s => s.id === activeScreenId);
     if (!screenDef) return null;
 
-    if (screenDef.id === "muxlaunch" && sc.GRID_ACTIVE === 1) {
-      const items = [
-        { id: "apps", label: "Applications" },
-        { id: "collection", label: "Collections" },
-        { id: "history", label: "History" },
-        { id: "favourite", label: "Favorites" },
-        { id: "explore", label: "Explore" },
-        { id: "config", label: "Settings" },
+    // muxlaunch — itens reais do Main Menu
+    if (screenDef.id === "muxlaunch") {
+      const launchItems = [
+        { id: "explore",    label: "Explore Content" },
+        { id: "collection", label: "Collection" },
+        { id: "history",    label: "History" },
+        { id: "apps",       label: "Applications" },
+        { id: "info",       label: "Information" },
+        { id: "config",     label: "Configuration" },
+        { id: "reboot",     label: "Reboot" },
+        { id: "shutdown",   label: "Shutdown" },
       ];
-      return (
-        <div className="grid grid-cols-3 gap-6 p-10 pt-20">
-          {items.map(item => (
-            <div key={item.id} className="flex flex-col items-center gap-3">
-              <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center p-4 border border-white/10">
-                {getGlyphSrc(item.id) ? <img src={getGlyphSrc(item.id)!} className="w-full h-full object-contain" /> : <Gamepad2 className="w-8 h-8 text-white/10" />}
+
+      if (sc.GRID_ACTIVE === 1) {
+        return (
+          <div className="grid grid-cols-3 gap-6 p-10 pt-20">
+            {launchItems.slice(0, 6).map(item => (
+              <div key={item.id} className="flex flex-col items-center gap-3"
+                style={{
+                  borderRadius: sc.CELL_RADIUS,
+                  backgroundColor: `rgba(${parseInt(sc.CELL_DEFAULT_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.CELL_DEFAULT_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.CELL_DEFAULT_BACKGROUND.slice(4, 6), 16)}, ${sc.CELL_DEFAULT_BACKGROUND_ALPHA / 255})`,
+                  border: `${sc.CELL_BORDER_WIDTH}px solid rgba(${parseInt(sc.CELL_DEFAULT_IMAGE_RECOLOUR.slice(0, 2), 16)}, ${parseInt(sc.CELL_DEFAULT_IMAGE_RECOLOUR.slice(2, 4), 16)}, ${parseInt(sc.CELL_DEFAULT_IMAGE_RECOLOUR.slice(4, 6), 16)}, 0.1)`,
+                  padding: sc.CELL_IMAGE_PADDING_TOP,
+                }}
+              >
+                <div className="w-20 h-20 flex items-center justify-center p-4">
+                  {getGlyphSrc(item.id) ? <img src={getGlyphSrc(item.id)!} className="w-full h-full object-contain" style={{ opacity: sc.CELL_DEFAULT_IMAGE_ALPHA / 255 }} /> : <Gamepad2 className="w-8 h-8 text-white/10" />}
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `#${sc.CELL_FOCUS_TEXT}`, opacity: sc.CELL_DEFAULT_TEXT_ALPHA / 255 }}>{item.label}</span>
               </div>
-              <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{item.label}</span>
+            ))}
+          </div>
+        );
+      }
+
+      // List layout (padrão)
+      if (sc.LIST_DEFAULT_TEXT_ALPHA <= 0 && sc.LIST_FOCUS_TEXT_ALPHA <= 0) return null;
+      return (
+        <div className="space-y-1 p-8 pt-20">
+          {launchItems.map((item, i) => (
+            <div key={item.id} className="flex items-center gap-4 p-3"
+              style={{
+                borderRadius: sc.LIST_DEFAULT_RADIUS,
+                backgroundColor: i === 0
+                  ? `rgba(${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(4, 6), 16)}, ${sc.LIST_FOCUS_BACKGROUND_ALPHA / 255})`
+                  : `rgba(${parseInt(sc.LIST_DEFAULT_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.LIST_DEFAULT_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.LIST_DEFAULT_BACKGROUND.slice(4, 6), 16)}, ${sc.LIST_DEFAULT_BACKGROUND_ALPHA / 255})`,
+                borderLeft: sc.LIST_DEFAULT_BORDER_SIDE & 4 ? `${sc.LIST_DEFAULT_BORDER_WIDTH}px solid transparent` : "none",
+                borderBottom: sc.LIST_DEFAULT_BORDER_SIDE & 1 ? `${sc.LIST_DEFAULT_BORDER_WIDTH}px solid transparent` : "none",
+              }}
+            >
+              <div className="w-5 h-5 flex items-center justify-center shrink-0" style={{ opacity: (i === 0 ? sc.LIST_FOCUS_GLYPH_ALPHA : sc.LIST_DEFAULT_GLYPH_ALPHA) / 255 }}>
+                {getGlyphSrc(item.id) ? <img src={getGlyphSrc(item.id)!} className="w-full h-full object-contain" /> : <Gamepad2 className="w-4 h-4 text-white/20" />}
+              </div>
+              <span className="text-xs font-bold" style={{ color: i === 0 ? `#${sc.LIST_FOCUS_TEXT}` : `#${sc.LIST_DEFAULT_TEXT}`, opacity: i === 0 ? sc.LIST_FOCUS_TEXT_ALPHA / 255 : sc.LIST_DEFAULT_TEXT_ALPHA / 255 }}>
+                {item.label}
+              </span>
             </div>
           ))}
         </div>
@@ -270,23 +320,58 @@ export default function ThemeMakerStudio() {
         "ZXCVBNM"
       ];
       return (
-        <div className="p-8 pt-20 flex flex-col gap-2">
-          <div className="bg-black/40 p-3 rounded border border-white/10 mb-4 h-10 flex items-center">
-            <span className="text-white/20 text-xs italic">Search...</span>
+        <div className="p-8 pt-20 flex flex-col gap-2"
+          style={{
+            backgroundColor: `rgba(${parseInt(sc.OSK_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.OSK_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.OSK_BACKGROUND.slice(4, 6), 16)}, ${sc.OSK_BACKGROUND_ALPHA / 255})`,
+            borderRadius: sc.OSK_RADIUS,
+            border: `${sc.OSK_BORDER_ALPHA > 0 ? 1 : 0}px solid rgba(255,255,255,0.1)`,
+          }}
+        >
+          <div className="p-3 rounded mb-4 h-10 flex items-center" style={{ backgroundColor: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <span className="text-xs italic" style={{ color: `#${sc.OSK_TEXT}`, opacity: sc.OSK_TEXT_ALPHA / 255 * 0.5 }}>Search...</span>
           </div>
           {rows.map((row, i) => (
             <div key={i} className="flex justify-center gap-1">
               {row.split("").map(char => (
-                <div key={char} className="w-8 h-10 bg-white/5 rounded border border-white/10 flex items-center justify-center text-xs font-bold text-white/60">
+                <div key={char} className="w-8 h-10 flex items-center justify-center text-xs font-bold"
+                  style={{
+                    backgroundColor: `rgba(${parseInt(sc.OSK_ITEM_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.OSK_ITEM_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.OSK_ITEM_BACKGROUND.slice(4, 6), 16)}, ${sc.OSK_ITEM_BACKGROUND_ALPHA / 255})`,
+                    borderRadius: sc.OSK_ITEM_RADIUS,
+                    color: `#${sc.OSK_TEXT}`,
+                    opacity: sc.OSK_TEXT_ALPHA / 255,
+                    border: sc.OSK_ITEM_BORDER_ALPHA > 0 ? `1px solid rgba(255,255,255,0.1)` : "none",
+                  }}
+                >
                   {char}
                 </div>
               ))}
             </div>
           ))}
           <div className="flex justify-center gap-1 mt-1">
-            <div className="w-12 h-10 bg-[#eab308]/20 rounded border border-[#eab308]/30 flex items-center justify-center text-[10px] font-bold text-[#eab308]">SHIFT</div>
-            <div className="w-32 h-10 bg-white/5 rounded border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/30">SPACE</div>
-            <div className="w-12 h-10 bg-white/10 rounded border border-white/20 flex items-center justify-center text-[10px] font-bold text-white/60">DEL</div>
+            <div className="w-12 h-10 flex items-center justify-center text-[10px] font-bold"
+              style={{
+                backgroundColor: `rgba(${parseInt(sc.OSK_ITEM_BACKGROUND_FOCUS.slice(0, 2), 16)}, ${parseInt(sc.OSK_ITEM_BACKGROUND_FOCUS.slice(2, 4), 16)}, ${parseInt(sc.OSK_ITEM_BACKGROUND_FOCUS.slice(4, 6), 16)}, ${sc.OSK_ITEM_BACKGROUND_FOCUS_ALPHA / 255})`,
+                borderRadius: sc.OSK_ITEM_RADIUS,
+                color: `#${sc.OSK_TEXT_FOCUS}`,
+                opacity: sc.OSK_TEXT_FOCUS_ALPHA / 255,
+              }}
+            >SHIFT</div>
+            <div className="w-32 h-10 flex items-center justify-center text-[10px] font-bold"
+              style={{
+                backgroundColor: `rgba(${parseInt(sc.OSK_ITEM_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.OSK_ITEM_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.OSK_ITEM_BACKGROUND.slice(4, 6), 16)}, ${sc.OSK_ITEM_BACKGROUND_ALPHA / 255})`,
+                borderRadius: sc.OSK_ITEM_RADIUS,
+                color: `#${sc.OSK_TEXT}`,
+                opacity: sc.OSK_TEXT_ALPHA / 255,
+              }}
+            >SPACE</div>
+            <div className="w-12 h-10 flex items-center justify-center text-[10px] font-bold"
+              style={{
+                backgroundColor: `rgba(${parseInt(sc.OSK_ITEM_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.OSK_ITEM_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.OSK_ITEM_BACKGROUND.slice(4, 6), 16)}, ${sc.OSK_ITEM_BACKGROUND_ALPHA / 255 * 1.2})`,
+                borderRadius: sc.OSK_ITEM_RADIUS,
+                color: `#${sc.OSK_TEXT}`,
+                opacity: sc.OSK_TEXT_ALPHA / 255,
+              }}
+            >DEL</div>
           </div>
         </div>
       );
@@ -297,21 +382,21 @@ export default function ThemeMakerStudio() {
         <div className="p-8 pt-24 space-y-4">
           <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
             <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center">
-              <Cpu className="w-6 h-6 text-[#eab308]" />
+              <Cpu className="w-6 h-6" style={{ color: `#${sc.LIST_FOCUS_TEXT}` }} />
             </div>
             <div>
-              <h4 className="text-[10px] text-white/30 uppercase tracking-tighter">System Hardware</h4>
-              <p className="text-xs font-bold text-white/80">ARM Cortex-A53 @ 1.5GHz</p>
+              <h4 className="text-[10px] uppercase tracking-tighter" style={{ color: `#${sc.LIST_DEFAULT_TEXT}`, opacity: sc.LIST_DEFAULT_TEXT_ALPHA / 255 * 0.5 }}>System Hardware</h4>
+              <p className="text-xs font-bold" style={{ color: `#${sc.LIST_DEFAULT_TEXT}`, opacity: sc.LIST_DEFAULT_TEXT_ALPHA / 255 }}>ARM Cortex-A53 @ 1.5GHz</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-              <h4 className="text-[10px] text-white/30 uppercase tracking-tighter">OS Version</h4>
-              <p className="text-xs font-bold text-white/80">v24.10.1</p>
+              <h4 className="text-[10px] uppercase tracking-tighter" style={{ color: `#${sc.LIST_DEFAULT_TEXT}`, opacity: sc.LIST_DEFAULT_TEXT_ALPHA / 255 * 0.5 }}>OS Version</h4>
+              <p className="text-xs font-bold" style={{ color: `#${sc.LIST_DEFAULT_TEXT}`, opacity: sc.LIST_DEFAULT_TEXT_ALPHA / 255 }}>v24.10.1</p>
             </div>
             <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-              <h4 className="text-[10px] text-white/30 uppercase tracking-tighter">Storage</h4>
-              <p className="text-xs font-bold text-white/80">14.2GB / 64GB</p>
+              <h4 className="text-[10px] uppercase tracking-tighter" style={{ color: `#${sc.LIST_DEFAULT_TEXT}`, opacity: sc.LIST_DEFAULT_TEXT_ALPHA / 255 * 0.5 }}>Storage</h4>
+              <p className="text-xs font-bold" style={{ color: `#${sc.LIST_DEFAULT_TEXT}`, opacity: sc.LIST_DEFAULT_TEXT_ALPHA / 255 }}>14.2GB / 64GB</p>
             </div>
           </div>
         </div>
@@ -330,11 +415,11 @@ export default function ThemeMakerStudio() {
           {sliders.map((s, i) => (
             <div key={i} className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold text-white/60 uppercase">{s.label}</span>
-                <span className="text-xs font-bold text-[#eab308]">{s.val}</span>
+                <span className="text-[10px] font-bold uppercase" style={{ color: `#${sc.LIST_DEFAULT_TEXT}`, opacity: sc.LIST_DEFAULT_TEXT_ALPHA / 255 }}>{s.label}</span>
+                <span className="text-xs font-bold" style={{ color: `#${sc.LIST_FOCUS_TEXT}` }}>{s.val}</span>
               </div>
-              <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                <div className="h-full bg-[#eab308] rounded-full" style={{ width: `${s.val}%` }} />
+              <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: `rgba(${parseInt(sc.BAR_PROGRESS_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.BAR_PROGRESS_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.BAR_PROGRESS_BACKGROUND.slice(4, 6), 16)}, ${sc.BAR_PROGRESS_BACKGROUND_ALPHA / 255})` }}>
+                <div className="h-full rounded-full" style={{ width: `${s.val}%`, backgroundColor: `#${sc.BAR_PROGRESS_ACTIVE_BACKGROUND}` }} />
               </div>
             </div>
           ))}
@@ -343,6 +428,7 @@ export default function ThemeMakerStudio() {
     }
 
     // Default List Layout (shared by muxplore, muxconfig, etc)
+    if (sc.LIST_DEFAULT_TEXT_ALPHA <= 0) return null;
     const getMockItems = () => {
       if (screenDef.id === "muxplore") return [
         { label: "Super Mario World", id: "rom" },
@@ -375,12 +461,21 @@ export default function ThemeMakerStudio() {
     return (
       <div className="space-y-1 p-8 pt-20">
         {mockItems.map((item: any, i) => (
-          <div key={i} className={`flex items-center justify-between p-3 rounded-lg border ${i === 0 ? "bg-[#eab308]/20 border-[#eab308]/30" : "bg-black/20 border-white/5"}`}>
+          <div key={i} className="flex items-center justify-between p-3"
+            style={{
+              borderRadius: sc.LIST_DEFAULT_RADIUS,
+              backgroundColor: i === 0
+                ? `rgba(${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(4, 6), 16)}, ${sc.LIST_FOCUS_BACKGROUND_ALPHA / 255})`
+                : `rgba(${parseInt(sc.LIST_DEFAULT_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.LIST_DEFAULT_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.LIST_DEFAULT_BACKGROUND.slice(4, 6), 16)}, ${sc.LIST_DEFAULT_BACKGROUND_ALPHA / 255})`,
+            }}
+          >
             <div className="flex items-center gap-4">
-              <div className="w-6 h-6 flex items-center justify-center">
+              <div className="w-6 h-6 flex items-center justify-center" style={{ opacity: (i === 0 ? sc.LIST_FOCUS_GLYPH_ALPHA : sc.LIST_DEFAULT_GLYPH_ALPHA) / 255 }}>
                 {getGlyphSrc(item.id) ? <img src={getGlyphSrc(item.id)!} className="w-full h-full object-contain" /> : <Gamepad2 className="w-4 h-4 text-white/20" />}
               </div>
-              <span className={`text-xs font-bold ${i === 0 ? "text-[#eab308]" : "text-white/60"}`}>{item.label}</span>
+              <span className="text-xs font-bold" style={{ color: i === 0 ? `#${sc.LIST_FOCUS_TEXT}` : `#${sc.LIST_DEFAULT_TEXT}`, opacity: i === 0 ? sc.LIST_FOCUS_TEXT_ALPHA / 255 : sc.LIST_DEFAULT_TEXT_ALPHA / 255 }}>
+                {item.label}
+              </span>
             </div>
             {item.status && (
               <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${item.status === 'ON' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
@@ -456,7 +551,7 @@ export default function ThemeMakerStudio() {
               onChange={(e) => setResolution(e.target.value)}
               className="bg-transparent text-[11px] font-medium text-white/50 outline-none cursor-pointer hover:text-white transition-colors"
             >
-              {["640x480", "720x480", "720x576", "720x720", "1024x720"].map(res => (
+              {["320x240", "480x272", "480x320", "640x480", "720x480", "720x576", "720x720", "854x480", "1024x768", "1280x720"].map(res => (
                 <option key={res} value={res} className="bg-[#0f0f0f] text-white/80">{res}</option>
               ))}
             </select>
@@ -481,7 +576,14 @@ export default function ThemeMakerStudio() {
             </Button>
             <Button
               size="sm"
-              onClick={() => exportTheme(themeName || "MyTheme")}
+              onClick={async () => {
+                try {
+                  await exportTheme(themeName || "MyTheme");
+                  showToast("Tema exportado com sucesso!", "success");
+                } catch {
+                  showToast("Erro ao exportar tema.", "error");
+                }
+              }}
               className="font-bold text-[11px] h-8 px-4 rounded-md shadow-lg shadow-[#eab308]/5"
               style={{ background: "linear-gradient(135deg,#fdc425,#e7b102)", color: "#3a2900" }}
             >
@@ -493,18 +595,37 @@ export default function ThemeMakerStudio() {
             const file = e.target.files?.[0];
             if (!file) return;
             const ok = await importThemeFromZip(file);
-            if (ok && file.name) setThemeName(file.name.replace(/\.[^/.]+$/, ""));
+            if (ok && file.name) {
+              setThemeName(file.name.replace(/\.[^/.]+$/, ""));
+              showToast("Tema importado com sucesso!", "success");
+            } else if (!ok) {
+              showToast("Erro ao importar tema.", "error");
+            }
             e.target.value = "";
           }} />
         </div>
       </header>
+
+      {/* Toast notification */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl border backdrop-blur-xl text-sm font-bold transition-all animate-in fade-in slide-in-from-bottom-2 ${
+            toast.kind === "success"
+              ? "bg-green-950/90 border-green-500/30 text-green-400"
+              : "bg-red-950/90 border-red-500/30 text-red-400"
+          }`}
+        >
+          {toast.kind === "success" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+          {toast.message}
+        </div>
+      )}
 
       {/* Body */}
       <div className="grid grid-cols-12 flex-1 overflow-hidden">
 
         {/* Sidebar */}
         <aside className="col-span-2 bg-[#0a0a0a] border-r border-white/5 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto py-3 space-y-4">
+          <div className="flex-1 overflow-y-auto py-3 space-y-4 custom-scrollbar">
             <div className="px-4">
                <Button
                 variant="ghost"
@@ -550,7 +671,7 @@ export default function ThemeMakerStudio() {
 
         {/* Canvas Area */}
         <main className="col-span-7 bg-[#050505] relative flex flex-col overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0)", backgroundSize: "24px 24px" }} />
           
           <div className="flex items-center justify-between px-6 py-3 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl z-20">
             <div className="flex items-center gap-3">
@@ -568,15 +689,17 @@ export default function ThemeMakerStudio() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto relative p-24 flex items-center justify-center custom-scrollbar">
+          <div className="flex-1 overflow-auto relative p-24 flex items-center justify-center custom-scrollbar" style={{ isolation: "isolate" }}>
             <div
-              className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out"
+              className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out overflow-hidden"
               style={{
                 width: canvasW,
                 height: canvasH,
                 transform: `scale(${canvasZoom})`,
+                transformOrigin: "center center",
                 backgroundColor: `#${sc.BACKGROUND}`,
-                imageRendering: "pixelated"
+                imageRendering: "pixelated",
+                isolation: "isolate",
               }}
               onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedLayerId(null); }}
             >
@@ -584,7 +707,20 @@ export default function ThemeMakerStudio() {
               {screen.overlay && <img src={screen.overlay} alt="overlay" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10" draggable={false} />}
               {screen.staticImage && <img src={screen.staticImage} alt="static" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[8]" draggable={false} />}
 
+              {/* Background Gradient */}
+              {sc.BACKGROUND_GRADIENT_DIRECTION > 0 && (
+                <div 
+                  className="absolute inset-0 pointer-events-none z-[2]"
+                  style={{
+                    background: sc.BACKGROUND_GRADIENT_DIRECTION === 1
+                      ? `linear-gradient(180deg, transparent ${sc.BACKGROUND_GRADIENT_START / 255 * 100}%, #${sc.BACKGROUND_GRADIENT_COLOR} ${sc.BACKGROUND_GRADIENT_STOP / 255 * 100}%)`
+                      : `linear-gradient(90deg, transparent ${sc.BACKGROUND_GRADIENT_START / 255 * 100}%, #${sc.BACKGROUND_GRADIENT_COLOR} ${sc.BACKGROUND_GRADIENT_STOP / 255 * 100}%)`
+                  }}
+                />
+              )}
+
               {/* muOS Header */}
+              {sc.HEADER_BACKGROUND_ALPHA > 0 && (
               <div 
                 className="absolute top-0 left-0 right-0 flex items-center overflow-hidden z-[50]"
                 style={{ 
@@ -592,28 +728,30 @@ export default function ThemeMakerStudio() {
                    backgroundColor: `rgba(${parseInt(sc.HEADER_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.HEADER_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.HEADER_BACKGROUND.slice(4, 6), 16)}, ${sc.HEADER_BACKGROUND_ALPHA / 255})` 
                 }}
               >
-                {/* Header Title alignment */}
+                {/* Header Title */}
                 <div 
-                  className="absolute inset-y-0 flex items-center gap-2"
+                  className={`${sc.HEADER_TEXT_ALIGN === 2 ? "absolute inset-0 flex justify-center" : sc.HEADER_TEXT_ALIGN === 3 ? "ml-auto" : "shrink-0"} flex items-center gap-1.5 overflow-hidden`}
                   style={{ 
-                    ...getAlignStyles(sc.HEADER_TEXT_ALIGN, sc.HEADER_PADDING_LEFT, sc.HEADER_PADDING_RIGHT),
+                    paddingLeft: sc.HEADER_PADDING_LEFT,
+                    paddingRight: sc.HEADER_PADDING_RIGHT,
+                    paddingTop: sc.FONT_HEADER_PAD_TOP,
+                    paddingBottom: sc.FONT_HEADER_PAD_BOTTOM,
                     color: `#${sc.HEADER_TEXT}`,
                     opacity: sc.HEADER_TEXT_ALPHA / 255,
-                    paddingTop: sc.FONT_HEADER_PAD_TOP,
-                    paddingBottom: sc.FONT_HEADER_PAD_BOTTOM
+                    fontFamily: "'Inter', system-ui, sans-serif",
                   }}
                 >
-                  <div className="w-5 h-5 flex items-center justify-center transform" style={{ transform: `translateY(${sc.FONT_HEADER_ICON_PAD_TOP}px)` }}>
-                    {globalGlyphs.bar["icon_menu"] ? <img src={globalGlyphs.bar["icon_menu"]!} className="w-full h-full object-contain" alt="menu icon" /> : <Monitor className="w-3.5 h-3.5" />}
-                  </div>
-                  <span className="text-xs font-bold tracking-tight uppercase">{def?.label}</span>
+                  <span className="text-[11px] font-bold tracking-tight uppercase leading-none truncate">{def?.label || (isGlobalMode ? "Global Scheme" : "")}</span>
                 </div>
 
-                {/* Clock alignment */}
+                {/* Clock */}
                 <div 
-                   className="absolute inset-y-0 flex items-center"
+                   className={`${Number(sc.DATETIME_ALIGN) === 2 ? "absolute inset-0 flex justify-center" : Number(sc.DATETIME_ALIGN) === 3 ? "ml-auto" : ""} flex items-center overflow-hidden`}
                    style={{ 
-                     ...getAlignStyles(Number(sc.DATETIME_ALIGN), Number(sc.DATETIME_PADDING_LEFT), Number(sc.DATETIME_PADDING_RIGHT)),
+                     paddingLeft: Number(sc.DATETIME_PADDING_LEFT),
+                     paddingRight: Number(sc.DATETIME_PADDING_RIGHT),
+                     paddingTop: sc.FONT_HEADER_PAD_TOP,
+                     paddingBottom: sc.FONT_HEADER_PAD_BOTTOM,
                      color: `#${sc.DATETIME_TEXT}`,
                      opacity: sc.DATETIME_ALPHA / 255
                    }}
@@ -621,31 +759,46 @@ export default function ThemeMakerStudio() {
                    <span className="text-[11px] font-mono font-bold tracking-widest leading-none">12:34</span>
                 </div>
 
-                {/* Status (Wifi/Battery) alignment */}
+                {/* Status (Wifi/Battery) */}
                 <div 
-                   className="absolute inset-y-0 flex items-center gap-3 px-2"
+                   className={`${sc.STATUS_ALIGN === 0 ? "mr-auto" : sc.STATUS_ALIGN === 2 ? "mx-auto" : "ml-auto"} flex items-center gap-3 shrink-0`}
                    style={{ 
-                     ...getAlignStyles(sc.STATUS_ALIGN, sc.STATUS_PADDING_LEFT, sc.STATUS_PADDING_RIGHT)
+                     paddingRight: sc.STATUS_PADDING_RIGHT,
+                     paddingLeft: sc.STATUS_PADDING_LEFT,
+                     paddingTop: sc.FONT_HEADER_ICON_PAD_TOP,
+                     paddingBottom: sc.FONT_HEADER_ICON_PAD_BOTTOM,
                    }}
                 >
                    {globalGlyphs.header["network_normal"] ? (
-                     <img src={globalGlyphs.header["network_normal"]!} className="h-4 object-contain" alt="wifi" />
+                     <img src={globalGlyphs.header["network_normal"]!} className="h-4 object-contain" alt="wifi" style={{ opacity: sc.NETWORK_NORMAL_ALPHA / 255 }} />
                    ) : (
-                     <Wifi className="w-3.5 h-3.5 text-white/30" />
+                     <Wifi className="w-3.5 h-3.5" style={{ color: `#${sc.NETWORK_NORMAL}`, opacity: sc.NETWORK_NORMAL_ALPHA / 255 }} />
                    )}
                    
                    {globalGlyphs.header["capacity_100"] ? (
-                     <img src={globalGlyphs.header["capacity_100"]!} className="h-4 object-contain" alt="battery" />
+                     <img src={globalGlyphs.header["capacity_100"]!} className="h-4 object-contain" alt="battery" style={{ opacity: sc.BATTERY_NORMAL_ALPHA / 255 }} />
                    ) : (
-                     <div className="w-6 h-3 rounded-[1px] border border-white/20 relative" style={{ borderColor: `#${sc.BATTERY_NORMAL}`, opacity: sc.BATTERY_NORMAL_ALPHA / 255 }}>
-                       <div className="absolute left-[1px] top-[1px] bottom-[1px] bg-white/60" style={{ width: "65%", backgroundColor: `#${sc.BATTERY_NORMAL}` }} />
+                     <div className="w-6 h-3 rounded-[1px] border relative" style={{ borderColor: `#${sc.BATTERY_NORMAL}`, opacity: sc.BATTERY_NORMAL_ALPHA / 255 }}>
+                       <div className="absolute left-[1px] top-[1px] bottom-[1px]" style={{ width: "65%", backgroundColor: `#${sc.BATTERY_NORMAL}` }} />
                      </div>
                    )}
-                </div>
+                 </div>
               </div>
+              )}
 
               {/* Screen Content Visualization (Mock) */}
-              <div className="absolute inset-0 z-[15]">
+              <div 
+                className="absolute z-[15]"
+                style={{
+                  top: (sc.HEADER_BACKGROUND_ALPHA > 0 ? sc.HEADER_HEIGHT : 0) + sc.CONTENT_PADDING_TOP,
+                  bottom: sc.FOOTER_BACKGROUND_ALPHA > 0 ? sc.FOOTER_HEIGHT : 0,
+                  left: sc.CONTENT_WIDTH > 0 
+                    ? (sc.CONTENT_ALIGNMENT === 1 ? 0 : sc.CONTENT_ALIGNMENT === 3 ? canvasW - sc.CONTENT_WIDTH : (canvasW - sc.CONTENT_WIDTH) / 2)
+                    : sc.CONTENT_PADDING_LEFT,
+                  width: sc.CONTENT_WIDTH > 0 ? sc.CONTENT_WIDTH : undefined,
+                  right: sc.CONTENT_WIDTH > 0 ? undefined : 0,
+                }}
+              >
                 {renderMockContent()}
               </div>
 
@@ -667,6 +820,7 @@ export default function ThemeMakerStudio() {
               ))}
 
               {/* muOS Footer */}
+              {sc.FOOTER_BACKGROUND_ALPHA > 0 && (
               <div 
                  className="absolute bottom-0 left-0 right-0 z-[50]"
                  style={{ 
@@ -674,36 +828,37 @@ export default function ThemeMakerStudio() {
                    backgroundColor: `rgba(${parseInt(sc.FOOTER_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.FOOTER_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.FOOTER_BACKGROUND.slice(4, 6), 16)}, ${sc.FOOTER_BACKGROUND_ALPHA / 255})` 
                  }}
               >
-                 <div className="flex items-center justify-between h-full px-4" style={{ color: `#${sc.FOOTER_TEXT}`, opacity: sc.FOOTER_TEXT_ALPHA / 255 }}>
-                    <div className="flex items-center gap-2">
+                 <div className={`flex items-center h-full px-4 ${sc.NAVIGATION_ALIGNMENT === 0 ? "justify-start gap-6" : sc.NAVIGATION_ALIGNMENT === 2 ? "justify-end gap-6" : "justify-between"}`} style={{ color: `#${sc.FOOTER_TEXT}`, opacity: sc.FOOTER_TEXT_ALPHA / 255, paddingTop: sc.FONT_FOOTER_PAD_TOP, paddingBottom: sc.FONT_FOOTER_PAD_BOTTOM }}>
+                    <div className="flex items-center gap-2" style={{ gap: sc.NAV_SPACING }}>
                        {globalGlyphs.footer["cancel"] ? (
                          <img src={globalGlyphs.footer["cancel"]!} className="h-4 object-contain" alt="back" />
                        ) : (
-                         <span className="text-[9px] font-bold bg-[#dc2626] text-white w-4 h-4 rounded-full flex items-center justify-center shadow-sm border border-white/10">B</span>
+                         <span className="text-[9px] font-bold bg-[#dc2626] text-white w-4 h-4 rounded-full flex items-center justify-center shadow-sm border border-white/10" style={{ opacity: sc.NAV_B_GLYPH_ALPHA / 255 }}>B</span>
                        )}
-                       <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
+                       <span className="text-[10px] font-bold uppercase tracking-wider" style={{ opacity: sc.NAV_B_TEXT_ALPHA / 255 }}>Back</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                       <span className="text-[10px] font-bold uppercase tracking-wider">Select</span>
+                    <div className="flex items-center gap-2" style={{ gap: sc.NAV_SPACING }}>
+                       <span className="text-[10px] font-bold uppercase tracking-wider" style={{ opacity: sc.NAV_A_TEXT_ALPHA / 255 }}>Select</span>
                        {globalGlyphs.footer["confirm"] ? (
                          <img src={globalGlyphs.footer["confirm"]!} className="h-4 object-contain" alt="select" />
                        ) : (
-                         <span className="text-[9px] font-bold bg-[#16a34a] text-white w-4 h-4 rounded-full flex items-center justify-center shadow-sm border border-white/10">A</span>
+                         <span className="text-[9px] font-bold bg-[#16a34a] text-white w-4 h-4 rounded-full flex items-center justify-center shadow-sm border border-white/10" style={{ opacity: sc.NAV_A_GLYPH_ALPHA / 255 }}>A</span>
                        )}
                     </div>
-                 </div>
-              </div>
-            </div>
-          </div>
-        </main>
+                  </div>
+               </div>
+              )}
+             </div>
+           </div>
+         </main>
 
         {/* Inspector */}
         <aside className="col-span-3 bg-[#0a0a0a] border-l border-white/5 flex flex-col overflow-hidden">
           <Tabs defaultValue="scheme" className="flex-1 flex flex-col overflow-hidden">
             <TabsList className="grid w-full grid-cols-3 bg-[#0d0d0d] border-b border-white/5 h-11 shrink-0 p-0 rounded-none">
-              <TabsTrigger value="scheme" className="text-[10px] uppercase font-bold tracking-widest rounded-none h-full data-[state=active]:bg-white/5 data-[state=active]:text-[#eab308] border-b-2 border-transparent data-[state=active]:border-[#eab308]">Scheme</TabsTrigger>
-              <TabsTrigger value="assets" className="text-[10px] uppercase font-bold tracking-widest rounded-none h-full data-[state=active]:bg-white/5 data-[state=active]:text-[#eab308] border-b-2 border-transparent data-[state=active]:border-[#eab308]">Assets</TabsTrigger>
-              <TabsTrigger value="glyphs" className="text-[10px] uppercase font-bold tracking-widest rounded-none h-full data-[state=active]:bg-white/5 data-[state=active]:text-[#eab308] border-b-2 border-transparent data-[state=active]:border-[#eab308]">Glyphs</TabsTrigger>
+              <TabsTrigger value="scheme" className="text-[10px] uppercase font-bold tracking-widest rounded-none h-full text-white/60 data-[state=active]:bg-white/5 data-[state=active]:text-[#eab308] border-b-2 border-transparent data-[state=active]:border-[#eab308] hover:text-white/80 transition-colors">Scheme</TabsTrigger>
+              <TabsTrigger value="assets" className="text-[10px] uppercase font-bold tracking-widest rounded-none h-full text-white/60 data-[state=active]:bg-white/5 data-[state=active]:text-[#eab308] border-b-2 border-transparent data-[state=active]:border-[#eab308] hover:text-white/80 transition-colors">Assets</TabsTrigger>
+              <TabsTrigger value="glyphs" className="text-[10px] uppercase font-bold tracking-widest rounded-none h-full text-white/60 data-[state=active]:bg-white/5 data-[state=active]:text-[#eab308] border-b-2 border-transparent data-[state=active]:border-[#eab308] hover:text-white/80 transition-colors">Glyphs</TabsTrigger>
             </TabsList>
 
             <TabsContent value="scheme" className="flex-1 overflow-y-auto m-0 outline-none p-4 custom-scrollbar">

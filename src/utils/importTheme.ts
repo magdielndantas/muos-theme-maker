@@ -207,6 +207,31 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
       }
     }
 
+    // Import metadata files
+    const nameTxt = files.find(f => f.name.toLowerCase() === "name.txt");
+    if (nameTxt) {
+      const content = await nameTxt.async("string");
+      store.setThemeName(content.trim());
+    } else {
+      const themeNameTxt = files.find(f => f.name.toLowerCase() === "theme_name.txt");
+      if (themeNameTxt) {
+        const content = await themeNameTxt.async("string");
+        store.setThemeName(content.trim());
+      }
+    }
+
+    const creditsTxt = files.find(f => f.name.toLowerCase() === "credits.txt");
+    if (creditsTxt) {
+      const content = await creditsTxt.async("string");
+      store.setThemeCredits(content.trim());
+    }
+
+    const versionTxt = files.find(f => f.name.toLowerCase() === "version.txt");
+    if (versionTxt) {
+      const content = await versionTxt.async("string");
+      store.setThemeVersion(content.trim());
+    }
+
     for (const [res, data] of Object.entries(resMap)) {
       store.importResolution(res, data);
     }
@@ -243,12 +268,30 @@ function parseIni(content: string): Partial<ScreenScheme> {
 
       // Exhaustive Mapping Logic
       if (currentSection === "header") {
+        if (cleanKey === "HEIGHT") cleanKey = "HEADER_HEIGHT";
+        if (cleanKey === "BACKGROUND") cleanKey = "HEADER_BACKGROUND";
+        if (cleanKey === "BACKGROUND_ALPHA") cleanKey = "HEADER_BACKGROUND_ALPHA";
+        if (cleanKey === "TEXT") cleanKey = "HEADER_TEXT";
+        if (cleanKey === "TEXT_ALPHA") cleanKey = "HEADER_TEXT_ALPHA";
         if (cleanKey === "PADDING_LEFT") cleanKey = "HEADER_PADDING_LEFT";
         if (cleanKey === "PADDING_RIGHT") cleanKey = "HEADER_PADDING_RIGHT";
         if (cleanKey === "TEXT_ALIGN") cleanKey = "HEADER_TEXT_ALIGN";
       } else if (currentSection === "footer") {
-        // MUOS footer uses info color logic
-        if (cleanKey === "FOOTER_TEXT") cleanKey = "FOOTER_TEXT";
+        if (cleanKey === "HEIGHT") cleanKey = "FOOTER_HEIGHT";
+        if (cleanKey === "BACKGROUND") cleanKey = "FOOTER_BACKGROUND";
+        if (cleanKey === "BACKGROUND_ALPHA") cleanKey = "FOOTER_BACKGROUND_ALPHA";
+        if (cleanKey === "TEXT") cleanKey = "FOOTER_TEXT";
+        if (cleanKey === "TEXT_ALPHA") cleanKey = "FOOTER_TEXT_ALPHA";
+      } else if (currentSection === "battery") {
+        if (cleanKey === "NORMAL") cleanKey = "BATTERY_NORMAL";
+        if (cleanKey === "ACTIVE") cleanKey = "BATTERY_ACTIVE";
+        if (cleanKey === "LOW") cleanKey = "BATTERY_LOW";
+      } else if (currentSection === "network") {
+        if (cleanKey === "NORMAL") cleanKey = "NETWORK_NORMAL";
+        if (cleanKey === "ACTIVE") cleanKey = "NETWORK_ACTIVE";
+      } else if (currentSection === "bluetooth") {
+        if (cleanKey === "NORMAL") cleanKey = "BLUETOOTH_NORMAL";
+        if (cleanKey === "ACTIVE") cleanKey = "BLUETOOTH_ACTIVE";
       } else if (currentSection === "date") {
         if (cleanKey === "PADDING_LEFT") cleanKey = "DATETIME_PADDING_LEFT";
         if (cleanKey === "PADDING_RIGHT") cleanKey = "DATETIME_PADDING_RIGHT";
@@ -271,9 +314,28 @@ function parseIni(content: string): Partial<ScreenScheme> {
         if (cleanKey === "GRID_ROW_COUNT" && row > 0) parsedScheme.GRID_ACTIVE = 1;
       } else if (currentSection === "navigation") {
         if (cleanKey === "ALIGNMENT") cleanKey = "NAVIGATION_ALIGNMENT";
+        if (cleanKey === "SPACING") cleanKey = "NAV_SPACING";
       } else if (currentSection === "terminal") {
         if (cleanKey === "BACKGROUND") cleanKey = "TERMINAL_BACKGROUND";
         if (cleanKey === "FOREGROUND") cleanKey = "TERMINAL_FOREGROUND";
+      } else if (currentSection === "counter") {
+        if (cleanKey === "BORDER_COLOUR") cleanKey = "COUNTER_BORDER_COLOUR";
+        if (cleanKey === "BACKGROUND_GRADIENT") cleanKey = "COUNTER_BACKGROUND_GRADIENT";
+      } else if (currentSection === "roll") {
+        // ROLL_* keys map directly — ROLL_TEXT, ROLL_BACKGROUND, ROLL_SELECT_TEXT, etc.
+      } else if (currentSection === "animation") {
+        if (cleanKey === "ANIMATION_DELAY") cleanKey = "ANIMATION_DELAY";
+        if (cleanKey === "ANIMATION_REPEAT") cleanKey = "ANIMATION_REPEAT";
+      } else if (currentSection === "list") {
+        // LIST_* keys map directly
+      } else if (currentSection === "bar") {
+        // BAR_* keys map directly
+      } else if (currentSection === "image_list") {
+        // IMAGE_LIST_* and IMAGE_PREVIEW_* keys map directly
+      } else if (currentSection === "charging") {
+        // CHARGER_* keys map directly
+      } else if (currentSection === "verbose") {
+        // VERBOSE_BOOT_* keys map directly
       }
 
       const typedKey = cleanKey as keyof ScreenScheme;
@@ -283,9 +345,9 @@ function parseIni(content: string): Partial<ScreenScheme> {
         if (expectedType === "number") {
           const num = Number(val);
           if (!isNaN(num)) parsedScheme[typedKey] = num as never;
-        } else {
-          // Color parsing
-          parsedScheme[typedKey] = parseHex(val) as never;
+        } else if (expectedType === "string") {
+          const hex = parseHex(val);
+          if (hex) parsedScheme[typedKey] = hex as never;
         }
       }
     }
