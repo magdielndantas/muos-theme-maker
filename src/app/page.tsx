@@ -1,11 +1,10 @@
 "use client";
 
-import { useThemeStore, CanvasLayer, ScreenScheme, DEFAULT_SCHEME } from "@/store/themeStore";
+import { useThemeStore, ScreenScheme } from "@/store/themeStore";
 import {
   MUOS_SCREENS,
   CATEGORY_ORDER,
   CATEGORY_LABELS,
-  MuosScreenDef,
 } from "@/data/muosScreens";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Rnd } from "react-rnd";
@@ -28,13 +27,21 @@ import {
   Copy,
   RotateCcw,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const CANVAS_W = 640;
 const CANVAS_H = 480;
 
-function categoryIcon(cat: MuosScreenDef["category"]) {
+function categoryIcon(cat: "core" | "media" | "settings" | "network" | "system") {
   const cls = "w-3.5 h-3.5";
   switch (cat) {
     case "core":    return <Monitor className={cls} />;
@@ -227,8 +234,8 @@ export default function ThemeMakerStudio() {
         </div>
 
         <div className="flex items-center gap-3">
-          <input
-            className="w-52 px-3 py-1.5 rounded-md bg-[#1a1a1a] border border-white/10 text-sm text-white/80 placeholder:text-white/30 outline-none focus:border-[#eab308]/50"
+          <Input
+            className="w-52 !bg-[#1a1a1a] !border-white/10 text-white/80 placeholder:text-white/30 focus:!border-[#eab308]/50"
             placeholder="Theme name…"
             value={themeName}
             onChange={(e) => setThemeName(e.target.value)}
@@ -246,21 +253,19 @@ export default function ThemeMakerStudio() {
           e.target.value = "";
         }}
       />
-          <button
-            onClick={() => importInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-white/10 text-sm text-white/70 hover:border-white/20 hover:text-white transition-colors"
-          >
+          <Button variant="outline" size="sm" onClick={() => importInputRef.current?.click()}>
             <Upload className="w-3.5 h-3.5" />
             Import
-          </button>
-          <button
+          </Button>
+          <Button 
+            size="sm"
             onClick={() => exportTheme(themeName || "MyTheme")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors"
+            className="!bg-transparent !border-none !text-[#3a2900] font-semibold hover:opacity-90 transition-opacity"
             style={{ background: "linear-gradient(135deg,#fdc425,#e7b102)", color: "#3a2900" }}
           >
             <Download className="w-3.5 h-3.5" />
             Export .muxthm
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -275,9 +280,11 @@ export default function ThemeMakerStudio() {
           <div className="flex-1 overflow-y-auto py-1">
 
             {/* Global Scheme entry — sempre no topo */}
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setActiveScreenId(GLOBAL_ID)}
-              className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs transition-colors mb-1 border-b border-white/5 ${
+              className={`w-full justify-between mb-1 border-b border-white/5 rounded-none ${
                 activeScreenId === GLOBAL_ID
                   ? "bg-[#3b82f6]/15 text-[#60a5fa]"
                   : "text-white/50 hover:text-white/80 hover:bg-white/5"
@@ -292,7 +299,7 @@ export default function ThemeMakerStudio() {
                   {screensWithOverrides} override{screensWithOverrides > 1 ? "s" : ""}
                 </span>
               )}
-            </button>
+            </Button>
 
             {CATEGORY_ORDER.map((cat) => {
               const items = MUOS_SCREENS.filter((s) => s.category === cat);
@@ -309,10 +316,12 @@ export default function ThemeMakerStudio() {
                       (k) => screens.find(sc => sc.id === s.id)?.scheme[k] !== globalScheme[k]
                     );
                     return (
-                      <button
+                      <Button
                         key={s.id}
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setActiveScreenId(s.id)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs transition-colors ${
+                        className={`w-full justify-between ${
                           active
                             ? "bg-[#eab308]/15 text-[#eab308]"
                             : "text-white/55 hover:text-white/80 hover:bg-white/5"
@@ -328,7 +337,7 @@ export default function ThemeMakerStudio() {
                           )}
                           {active && <ChevronRight className="w-3 h-3" />}
                         </div>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -354,17 +363,19 @@ export default function ThemeMakerStudio() {
                 {def.subAssets.map((sa) => {
                   const hasSrc = screen.subAssets.find((s) => s.name === sa.name)?.src;
                   return (
-                    <button
+                    <Button
                       key={sa.name}
+                      variant="outline"
+                      size="sm"
                       onClick={() => setActiveSubAsset(sa.name)}
-                      className={`px-2.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                      className={`text-[10px] font-medium ${
                         activeSubAsset === sa.name
-                          ? "bg-[#eab308] text-[#3a2900]"
-                          : `${hasSrc ? "text-green-400/70 border-green-500/30" : "text-white/40 border-white/10"} border hover:text-white/70`
+                          ? "!bg-[#eab308] !text-[#3a2900] !border-[#eab308]"
+                          : `${hasSrc ? "text-green-400/70 border-green-500/30" : "text-white/40 border-white/10"} hover:text-white/70`
                       }`}
                     >
                       {sa.label}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -378,8 +389,7 @@ export default function ThemeMakerStudio() {
               style={{
                 width: CANVAS_W,
                 height: CANVAS_H,
-                background: `#${sc.BACKGROUND}`,
-                opacity: sc.BACKGROUND_ALPHA / 255,
+                backgroundColor: `rgba(${parseInt(sc.BACKGROUND.slice(0,2),16)},${parseInt(sc.BACKGROUND.slice(2,4),16)},${parseInt(sc.BACKGROUND.slice(4,6),16)},${(sc.BACKGROUND_ALPHA/255).toFixed(2)})`,
               }}
               onMouseDown={(e) => {
                 if (e.target === e.currentTarget) setSelectedLayerId(null);
@@ -662,15 +672,17 @@ export default function ThemeMakerStudio() {
               </div>
 
               {canvasBackground && (
-                <button
-                  onClick={() => activeSubAsset
-                    ? setScreenSubAsset(activeScreenId, activeSubAsset, null)
-                    : setScreenWallpaper(activeScreenId, null)
-                  }
-                  className="mt-1.5 w-full text-[10px] text-red-400/60 hover:text-red-400 text-center py-1 transition-colors"
-                >
-                  Remove wallpaper
-                </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => activeSubAsset
+                  ? setScreenSubAsset(activeScreenId, activeSubAsset, null)
+                  : setScreenWallpaper(activeScreenId, null)
+                }
+                className="mt-1.5 w-full text-[10px] text-red-400/60 hover:text-red-400 justify-center"
+              >
+                Remove wallpaper
+              </Button>
               )}
             </section>
 
@@ -695,26 +707,30 @@ export default function ThemeMakerStudio() {
                         <span className="text-xs">{sa.label}</span>
                         <div className="flex items-center gap-1">
                           {hasSrc && <CheckCircle2 className="w-3 h-3 text-green-500/70" />}
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveSubAsset(sa.name);
                               setTimeout(() => subAssetInputRef.current?.click(), 50);
                             }}
-                            className="text-white/20 hover:text-white/60 transition-colors"
+                            className="text-white/20 hover:text-white/60"
                           >
                             <Upload className="w-3 h-3" />
-                          </button>
+                          </Button>
                           {hasSrc && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setScreenSubAsset(activeScreenId, sa.name, null);
-                              }}
-                              className="text-red-400/40 hover:text-red-400/80 transition-colors"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setScreenSubAsset(activeScreenId, sa.name, null);
+                            }}
+                            className="text-red-400/40 hover:text-red-400/80"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                           )}
                         </div>
                       </div>
@@ -743,20 +759,24 @@ export default function ThemeMakerStudio() {
                       </div>
                       <div className="flex items-center gap-1">
                         {g.src && <CheckCircle2 className="w-3 h-3 text-green-500/70" />}
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
                           onClick={() => { setActiveGlyph(g.name); setTimeout(() => glyphInputRef.current?.click(), 50); }}
-                          className="text-white/20 hover:text-white/60 transition-colors"
+                          className="text-white/20 hover:text-white/60"
                           title={`Upload ${g.name}.png`}
                         >
                           <Upload className="w-3 h-3" />
-                        </button>
+                        </Button>
                         {g.src && (
-                          <button
-                            onClick={() => setScreenGlyph(activeScreenId, g.name, null)}
-                            className="text-red-400/40 hover:text-red-400/80 transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setScreenGlyph(activeScreenId, g.name, null)}
+                          className="text-red-400/40 hover:text-red-400/80"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
                         )}
                       </div>
                     </div>
@@ -782,12 +802,14 @@ export default function ThemeMakerStudio() {
                 )}
               </div>
               {screen.staticImage && (
-                <button
-                  onClick={() => setScreenStaticImage(activeScreenId, null)}
-                  className="mt-1 w-full text-[10px] text-red-400/60 hover:text-red-400 text-center py-1 transition-colors"
-                >
-                  Remove static image
-                </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setScreenStaticImage(activeScreenId, null)}
+                className="mt-1 w-full text-[10px] text-red-400/60 hover:text-red-400 justify-center"
+              >
+                Remove static image
+              </Button>
               )}
             </section>
 
@@ -804,11 +826,12 @@ export default function ThemeMakerStudio() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Height</label>
                   <div className="flex items-center gap-1.5">
-                    <input
-                      type="range" min={0} max={120}
-                      value={sc.HEADER_HEIGHT}
-                      onChange={(e) => updateScreenScheme(activeScreenId, { HEADER_HEIGHT: Number(e.target.value) })}
-                      className="w-20 accent-[#eab308]"
+                    <Slider
+                      value={[sc.HEADER_HEIGHT]}
+                      min={0}
+                      max={120}
+                      onValueChange={(val) => updateScreenScheme(activeScreenId, { HEADER_HEIGHT: Array.isArray(val) ? val[0] : val })}
+                      className="w-20"
                     />
                     <span className="text-[10px] text-white/50 w-6 text-right">{sc.HEADER_HEIGHT}</span>
                   </div>
@@ -817,11 +840,11 @@ export default function ThemeMakerStudio() {
                 {/* Background color */}
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Bg color</label>
-                  <input
+                  <Input
                     type="color"
                     value={`#${sc.HEADER_BACKGROUND}`}
                     onChange={(e) => updateScreenScheme(activeScreenId, { HEADER_BACKGROUND: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer border border-white/10 bg-transparent p-0"
+                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
                   />
                 </div>
 
@@ -829,11 +852,12 @@ export default function ThemeMakerStudio() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Bg alpha</label>
                   <div className="flex items-center gap-1.5">
-                    <input
-                      type="range" min={0} max={255}
-                      value={sc.HEADER_BACKGROUND_ALPHA}
-                      onChange={(e) => updateScreenScheme(activeScreenId, { HEADER_BACKGROUND_ALPHA: Number(e.target.value) })}
-                      className="w-20 accent-[#eab308]"
+                    <Slider
+                      value={[sc.HEADER_BACKGROUND_ALPHA]}
+                      min={0}
+                      max={255}
+                      onValueChange={(val) => updateScreenScheme(activeScreenId, { HEADER_BACKGROUND_ALPHA: Array.isArray(val) ? val[0] : val })}
+                      className="w-20"
                     />
                     <span className="text-[10px] text-white/50 w-6 text-right">{sc.HEADER_BACKGROUND_ALPHA}</span>
                   </div>
@@ -842,11 +866,11 @@ export default function ThemeMakerStudio() {
                 {/* Text color */}
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Text color</label>
-                  <input
+                  <Input
                     type="color"
                     value={`#${sc.HEADER_TEXT}`}
                     onChange={(e) => updateScreenScheme(activeScreenId, { HEADER_TEXT: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer border border-white/10 bg-transparent p-0"
+                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
                   />
                 </div>
 
@@ -854,11 +878,12 @@ export default function ThemeMakerStudio() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Text alpha</label>
                   <div className="flex items-center gap-1.5">
-                    <input
-                      type="range" min={0} max={255}
-                      value={sc.HEADER_TEXT_ALPHA}
-                      onChange={(e) => updateScreenScheme(activeScreenId, { HEADER_TEXT_ALPHA: Number(e.target.value) })}
-                      className="w-20 accent-[#eab308]"
+                    <Slider
+                      value={[sc.HEADER_TEXT_ALPHA]}
+                      min={0}
+                      max={255}
+                      onValueChange={(val) => updateScreenScheme(activeScreenId, { HEADER_TEXT_ALPHA: Array.isArray(val) ? val[0] : val })}
+                      className="w-20"
                     />
                     <span className="text-[10px] text-white/50 w-6 text-right">{sc.HEADER_TEXT_ALPHA}</span>
                   </div>
@@ -867,16 +892,21 @@ export default function ThemeMakerStudio() {
                 {/* Text align */}
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Text align</label>
-                  <div className="flex gap-1">
-                    {([1, 2, 3] as const).map((v) => (
-                      <button key={v}
-                        onClick={() => updateScreenScheme(activeScreenId, { HEADER_TEXT_ALIGN: v })}
-                        className={`w-6 h-6 rounded text-[9px] font-bold transition-colors ${sc.HEADER_TEXT_ALIGN === v ? "bg-[#eab308] text-[#3a2900]" : "bg-white/5 text-white/30 hover:text-white/60"}`}
-                      >
-                        {v === 1 ? "L" : v === 2 ? "C" : "R"}
-                      </button>
-                    ))}
-                  </div>
+                    <div className="flex gap-1">
+                      {([1, 2, 3] as const).map((v) => (
+                        <Button
+                          key={v}
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => updateScreenScheme(activeScreenId, { HEADER_TEXT_ALIGN: v })}
+                          className={`${
+                            sc.HEADER_TEXT_ALIGN === v ? "bg-[#eab308] text-[#3a2900]" : "bg-white/5 text-white/30 hover:text-white/60"
+                          }`}
+                        >
+                          {v === 1 ? "L" : v === 2 ? "C" : "R"}
+                        </Button>
+                      ))}
+                    </div>
                 </div>
               </div>
 
@@ -888,11 +918,12 @@ export default function ThemeMakerStudio() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Height</label>
                   <div className="flex items-center gap-1.5">
-                    <input
-                      type="range" min={0} max={120}
-                      value={sc.FOOTER_HEIGHT}
-                      onChange={(e) => updateScreenScheme(activeScreenId, { FOOTER_HEIGHT: Number(e.target.value) })}
-                      className="w-20 accent-[#eab308]"
+                    <Slider
+                      value={[sc.FOOTER_HEIGHT]}
+                      min={0}
+                      max={120}
+                      onValueChange={(val) => updateScreenScheme(activeScreenId, { FOOTER_HEIGHT: Array.isArray(val) ? val[0] : val })}
+                      className="w-20"
                     />
                     <span className="text-[10px] text-white/50 w-6 text-right">{sc.FOOTER_HEIGHT}</span>
                   </div>
@@ -901,11 +932,11 @@ export default function ThemeMakerStudio() {
                 {/* Background color */}
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Bg color</label>
-                  <input
+                  <Input
                     type="color"
                     value={`#${sc.FOOTER_BACKGROUND}`}
                     onChange={(e) => updateScreenScheme(activeScreenId, { FOOTER_BACKGROUND: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer border border-white/10 bg-transparent p-0"
+                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
                   />
                 </div>
 
@@ -913,11 +944,12 @@ export default function ThemeMakerStudio() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Bg alpha</label>
                   <div className="flex items-center gap-1.5">
-                    <input
-                      type="range" min={0} max={255}
-                      value={sc.FOOTER_BACKGROUND_ALPHA}
-                      onChange={(e) => updateScreenScheme(activeScreenId, { FOOTER_BACKGROUND_ALPHA: Number(e.target.value) })}
-                      className="w-20 accent-[#eab308]"
+                    <Slider
+                      value={[sc.FOOTER_BACKGROUND_ALPHA]}
+                      min={0}
+                      max={255}
+                      onValueChange={(val) => updateScreenScheme(activeScreenId, { FOOTER_BACKGROUND_ALPHA: Array.isArray(val) ? val[0] : val })}
+                      className="w-20"
                     />
                     <span className="text-[10px] text-white/50 w-6 text-right">{sc.FOOTER_BACKGROUND_ALPHA}</span>
                   </div>
@@ -927,11 +959,12 @@ export default function ThemeMakerStudio() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Text alpha</label>
                   <div className="flex items-center gap-1.5">
-                    <input
-                      type="range" min={0} max={255}
-                      value={sc.FOOTER_TEXT_ALPHA}
-                      onChange={(e) => updateScreenScheme(activeScreenId, { FOOTER_TEXT_ALPHA: Number(e.target.value) })}
-                      className="w-20 accent-[#eab308]"
+                    <Slider
+                      value={[sc.FOOTER_TEXT_ALPHA]}
+                      min={0}
+                      max={255}
+                      onValueChange={(val) => updateScreenScheme(activeScreenId, { FOOTER_TEXT_ALPHA: Array.isArray(val) ? val[0] : val })}
+                      className="w-20"
                     />
                     <span className="text-[10px] text-white/50 w-6 text-right">{sc.FOOTER_TEXT_ALPHA}</span>
                   </div>
@@ -945,11 +978,11 @@ export default function ThemeMakerStudio() {
                 {/* Focus bg color */}
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Focus bg</label>
-                  <input
+                  <Input
                     type="color"
                     value={`#${sc.LIST_FOCUS_BACKGROUND}`}
                     onChange={(e) => updateScreenScheme(activeScreenId, { LIST_FOCUS_BACKGROUND: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer border border-white/10 bg-transparent p-0"
+                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
                   />
                 </div>
 
@@ -957,11 +990,12 @@ export default function ThemeMakerStudio() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Focus bg α</label>
                   <div className="flex items-center gap-1.5">
-                    <input
-                      type="range" min={0} max={255}
-                      value={sc.LIST_FOCUS_BACKGROUND_ALPHA}
-                      onChange={(e) => updateScreenScheme(activeScreenId, { LIST_FOCUS_BACKGROUND_ALPHA: Number(e.target.value) })}
-                      className="w-20 accent-[#eab308]"
+                    <Slider
+                      value={[sc.LIST_FOCUS_BACKGROUND_ALPHA]}
+                      min={0}
+                      max={255}
+                      onValueChange={(val) => updateScreenScheme(activeScreenId, { LIST_FOCUS_BACKGROUND_ALPHA: Array.isArray(val) ? val[0] : val })}
+                      className="w-20"
                     />
                     <span className="text-[10px] text-white/50 w-6 text-right">{sc.LIST_FOCUS_BACKGROUND_ALPHA}</span>
                   </div>
@@ -980,11 +1014,12 @@ export default function ThemeMakerStudio() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Default α</label>
                   <div className="flex items-center gap-1.5">
-                    <input
-                      type="range" min={0} max={255}
-                      value={sc.LIST_DEFAULT_TEXT_ALPHA}
-                      onChange={(e) => updateScreenScheme(activeScreenId, { LIST_DEFAULT_TEXT_ALPHA: Number(e.target.value) })}
-                      className="w-20 accent-[#eab308]"
+                    <Slider
+                      value={[sc.LIST_DEFAULT_TEXT_ALPHA]}
+                      min={0}
+                      max={255}
+                      onValueChange={(val) => updateScreenScheme(activeScreenId, { LIST_DEFAULT_TEXT_ALPHA: Array.isArray(val) ? val[0] : val })}
+                      className="w-20"
                     />
                     <span className="text-[10px] text-white/50 w-6 text-right">{sc.LIST_DEFAULT_TEXT_ALPHA}</span>
                   </div>
@@ -1003,11 +1038,12 @@ export default function ThemeMakerStudio() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Focus α</label>
                   <div className="flex items-center gap-1.5">
-                    <input
-                      type="range" min={0} max={255}
-                      value={sc.LIST_FOCUS_TEXT_ALPHA}
-                      onChange={(e) => updateScreenScheme(activeScreenId, { LIST_FOCUS_TEXT_ALPHA: Number(e.target.value) })}
-                      className="w-20 accent-[#eab308]"
+                    <Slider
+                      value={[sc.LIST_FOCUS_TEXT_ALPHA]}
+                      min={0}
+                      max={255}
+                      onValueChange={(val) => updateScreenScheme(activeScreenId, { LIST_FOCUS_TEXT_ALPHA: Array.isArray(val) ? val[0] : val })}
+                      className="w-20"
                     />
                     <span className="text-[10px] text-white/50 w-6 text-right">{sc.LIST_FOCUS_TEXT_ALPHA}</span>
                   </div>
@@ -1032,25 +1068,28 @@ export default function ThemeMakerStudio() {
                 )}
               </div>
               {screen.overlay && (
-                <button
-                  onClick={() => setScreenOverlay(activeScreenId, null)}
-                  className="mt-1 w-full text-[10px] text-red-400/60 hover:text-red-400 text-center py-1 transition-colors"
-                >
-                  Remove overlay
-                </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setScreenOverlay(activeScreenId, null)}
+                className="mt-1 w-full text-[10px] text-red-400/60 hover:text-red-400 justify-center"
+              >
+                Remove overlay
+              </Button>
               )}
             </section>
-
             {/* Layers section */}
             <section className="px-3 py-3">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Extra Layers</p>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => layerInputRef.current?.click()}
-                  className="flex items-center gap-1 text-[10px] text-white/30 hover:text-[#eab308] transition-colors"
+                  className="text-[10px] text-white/30 hover:text-[#eab308]"
                 >
                   <Layers className="w-3 h-3" /> Add
-                </button>
+                </Button>
               </div>
 
               <div className="space-y-1">
@@ -1067,12 +1106,14 @@ export default function ThemeMakerStudio() {
                     <span className="text-[10px] truncate w-32" title={layer.name}>{layer.name}</span>
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-mono text-white/20">{layer.x},{layer.y}</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeLayer(activeScreenId, layer.id); }}
-                        className="text-red-400/40 hover:text-red-400/80 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={(e) => { e.stopPropagation(); removeLayer(activeScreenId, layer.id); }}
+                          className="text-red-400/40 hover:text-red-400/80"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
                     </div>
                   </div>
                 ))}
