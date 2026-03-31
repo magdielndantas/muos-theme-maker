@@ -78,17 +78,18 @@ export default function ThemeMakerStudio() {
   const store = useThemeStore();
   const {
     activeScreenId, selectedLayerId, themeName,
-    getActiveScreen, getEffectiveScheme, 
+    getActiveScreen, getEffectiveScheme,
     setThemeName, setActiveScreenId,
     setGlobalScheme, setGlobalGlyph,
     setScreenWallpaper, setScreenOverlay, setScreenSubAsset,
     setScreenStaticImage, setScreenGlyph,
     addLayer, updateLayer, removeLayer, setSelectedLayerId,
     updateScreenScheme, resolution, setResolution, cloneResolution,
+    setDefaultWallpaper, setBootLogo, setPreviewImage, setFont, setSound,
   } = store;
 
   const resolutionData = store.resolutions[resolution] || store.resolutions["640x480"];
-  const { screens, globalScheme, globalGlyphs } = resolutionData;
+  const { screens, globalScheme, globalGlyphs, defaultWallpaper, bootLogo, previewImage, fonts, sounds } = resolutionData;
 
   const [canvasW, canvasH] = resolution.split("x").map(Number);
 
@@ -122,7 +123,14 @@ export default function ThemeMakerStudio() {
   const staticImageInputRef = useRef<HTMLInputElement>(null);
   const glyphInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
-  
+  const defaultWallInputRef = useRef<HTMLInputElement>(null);
+  const bootLogoInputRef = useRef<HTMLInputElement>(null);
+  const previewInputRef = useRef<HTMLInputElement>(null);
+  const fontInputRef = useRef<HTMLInputElement>(null);
+  const soundInputRef = useRef<HTMLInputElement>(null);
+
+  const [activeFontSlot, setActiveFontSlot] = useState<"default" | "header" | "footer" | "panel">("default");
+
   const [activeGlyph, setActiveGlyph] = useState<string | null>(null);
   const [activeGlyphCategory, setActiveGlyphCategory] = useState<"screen" | "header" | "footer" | "bar">("screen");
   const [canvasZoom, setCanvasZoom] = useState(1);
@@ -165,6 +173,49 @@ export default function ThemeMakerStudio() {
     }
     e.target.value = "";
   }, [activeGlyph, activeGlyphCategory, activeScreenId, setScreenGlyph, setGlobalGlyph]);
+
+  const handleDefaultWallUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const src = await readFileAsDataURL(file);
+    setDefaultWallpaper(src);
+    e.target.value = "";
+  }, [setDefaultWallpaper]);
+
+  const handleBootLogoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const src = await readFileAsDataURL(file);
+    setBootLogo(src);
+    e.target.value = "";
+  }, [setBootLogo]);
+
+  const handlePreviewUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const src = await readFileAsDataURL(file);
+    setPreviewImage(src);
+    e.target.value = "";
+  }, [setPreviewImage]);
+
+  const handleFontUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const src = await readFileAsDataURL(file);
+    setFont(activeFontSlot, src);
+    e.target.value = "";
+  }, [activeFontSlot, setFont]);
+
+  const handleSoundUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      const src = await readFileAsDataURL(file);
+      const name = file.name.replace(/\.[^/.]+$/, "");
+      setSound(name, src);
+    }
+    e.target.value = "";
+  }, [setSound]);
 
   const activeSubAssetSrc = activeSubAsset
     ? screen.subAssets.find((sa) => sa.name === activeSubAsset)?.src ?? null
@@ -372,6 +423,11 @@ export default function ThemeMakerStudio() {
         e.target.value = "";
       }} />
       <input ref={glyphInputRef} type="file" className="hidden" accept="image/png" onChange={handleGlyphUpload} />
+      <input ref={defaultWallInputRef} type="file" className="hidden" accept="image/*" onChange={handleDefaultWallUpload} />
+      <input ref={bootLogoInputRef} type="file" className="hidden" accept=".bmp,.png,image/bmp,image/png" onChange={handleBootLogoUpload} />
+      <input ref={previewInputRef} type="file" className="hidden" accept="image/*" onChange={handlePreviewUpload} />
+      <input ref={fontInputRef} type="file" className="hidden" accept=".bin" onChange={handleFontUpload} />
+      <input ref={soundInputRef} type="file" className="hidden" accept=".wav,.mp3,.ogg,audio/wav,audio/mpeg,audio/ogg" multiple onChange={handleSoundUpload} />
 
       {/* Header */}
       <header className="flex items-center justify-between px-5 py-3 bg-[#131313] border-b border-white/5 z-10 shrink-0">
@@ -773,6 +829,96 @@ export default function ThemeMakerStudio() {
                     ))}
                  </div>
               </section>
+
+              {isGlobalMode && (
+                <section className="space-y-4 border-t border-white/5 pt-4">
+                  <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Theme Files</p>
+
+                  {/* Default Wallpaper */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.15em]">Default Wallpaper</p>
+                      {defaultWallpaper && <Button variant="ghost" size="icon" onClick={() => setDefaultWallpaper(null)} className="h-5 w-5 text-red-400/50 hover:text-red-400"><Trash2 className="w-3 h-3" /></Button>}
+                    </div>
+                    <div onClick={() => defaultWallInputRef.current?.click()} className="h-10 bg-white/5 rounded-lg border border-dashed border-white/10 flex items-center justify-center gap-2 cursor-pointer hover:bg-white/[0.08] transition-all group px-3">
+                      {defaultWallpaper ? <><div className="w-5 h-5 rounded bg-green-500/20 flex items-center justify-center"><CheckCircle2 className="w-3 h-3 text-green-500" /></div><span className="text-[9px] font-bold text-green-500/80 uppercase truncate flex-1">Wallpaper loaded</span></> : <><Upload className="w-3.5 h-3.5 text-white/10 group-hover:text-white/30" /><span className="text-[9px] font-bold text-white/20 group-hover:text-white/40 uppercase">Wallpaper aplicado a telas sem wallpaper próprio</span></>}
+                    </div>
+                  </div>
+
+                  {/* Boot Logo */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.15em]">Boot Logo</p>
+                      {bootLogo && <Button variant="ghost" size="icon" onClick={() => setBootLogo(null)} className="h-5 w-5 text-red-400/50 hover:text-red-400"><Trash2 className="w-3 h-3" /></Button>}
+                    </div>
+                    <div onClick={() => bootLogoInputRef.current?.click()} className="h-10 bg-white/5 rounded-lg border border-dashed border-white/10 flex items-center justify-center gap-2 cursor-pointer hover:bg-white/[0.08] transition-all group px-3">
+                      {bootLogo ? <><div className="w-5 h-5 rounded bg-green-500/20 flex items-center justify-center"><CheckCircle2 className="w-3 h-3 text-green-500" /></div><span className="text-[9px] font-bold text-green-500/80 uppercase truncate flex-1">Boot logo loaded</span></> : <><Upload className="w-3.5 h-3.5 text-white/10 group-hover:text-white/30" /><span className="text-[9px] font-bold text-white/20 group-hover:text-white/40 uppercase">Exportado como bootlogo.bmp</span></>}
+                    </div>
+                  </div>
+
+                  {/* Preview Image */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.15em]">Preview Image</p>
+                      {previewImage && <Button variant="ghost" size="icon" onClick={() => setPreviewImage(null)} className="h-5 w-5 text-red-400/50 hover:text-red-400"><Trash2 className="w-3 h-3" /></Button>}
+                    </div>
+                    <div onClick={() => previewInputRef.current?.click()} className="h-10 bg-white/5 rounded-lg border border-dashed border-white/10 flex items-center justify-center gap-2 cursor-pointer hover:bg-white/[0.08] transition-all group px-3">
+                      {previewImage ? <><div className="w-5 h-5 rounded bg-green-500/20 flex items-center justify-center"><CheckCircle2 className="w-3 h-3 text-green-500" /></div><span className="text-[9px] font-bold text-green-500/80 uppercase truncate flex-1">Preview loaded</span></> : <><Upload className="w-3.5 h-3.5 text-white/10 group-hover:text-white/30" /><span className="text-[9px] font-bold text-white/20 group-hover:text-white/40 uppercase">Imagem de preview para distribuição</span></>}
+                    </div>
+                  </div>
+
+                  {/* Fonts */}
+                  <div className="space-y-2">
+                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.15em]">Fonts (.bin)</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {(["default", "header", "footer", "panel"] as const).map(slot => (
+                        <Button
+                          key={slot}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { setActiveFontSlot(slot); fontInputRef.current?.click(); }}
+                          className={`h-8 justify-between px-2 text-[9px] uppercase font-bold tracking-wider ${fonts[slot] ? "bg-green-500/10 text-green-500/80 border border-green-500/20" : "text-white/30 hover:text-white bg-white/[0.02] border border-white/5 hover:bg-white/5"}`}
+                        >
+                          <span>{slot}</span>
+                          {fonts[slot] ? <CheckCircle2 className="w-3 h-3" /> : <Upload className="w-3 h-3 opacity-40" />}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(["default", "header", "footer", "panel"] as const).filter(s => fonts[s]).map(slot => (
+                        <button key={slot} onClick={() => setFont(slot, null)} className="flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/10 border border-red-500/10 text-[8px] font-bold text-red-400/60 hover:text-red-400 uppercase">
+                          <Trash2 className="w-2.5 h-2.5" />{slot}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sounds */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.15em]">Sounds</p>
+                      <Button variant="ghost" size="icon" onClick={() => soundInputRef.current?.click()} className="h-5 w-5 bg-white/5 hover:bg-[#eab308]/10 hover:text-[#eab308]"><Plus className="w-3 h-3" /></Button>
+                    </div>
+                    <div className="space-y-1">
+                      {Object.entries(sounds).filter(([, src]) => src).map(([name]) => (
+                        <div key={name} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded bg-[#eab308]/10 flex items-center justify-center"><Film className="w-2.5 h-2.5 text-[#eab308]/60" /></div>
+                            <span className="text-[9px] font-bold text-white/40 uppercase truncate">{name}</span>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => setSound(name, null)} className="h-5 w-5 text-red-400/40 hover:text-red-400 hover:bg-red-400/10"><Trash2 className="w-2.5 h-2.5" /></Button>
+                        </div>
+                      ))}
+                      {Object.values(sounds).every(s => !s) && (
+                        <div onClick={() => soundInputRef.current?.click()} className="h-10 bg-white/5 rounded-lg border border-dashed border-white/10 flex items-center justify-center gap-2 cursor-pointer hover:bg-white/[0.08] transition-all group px-3">
+                          <Upload className="w-3.5 h-3.5 text-white/10 group-hover:text-white/30" />
+                          <span className="text-[9px] font-bold text-white/20 group-hover:text-white/40 uppercase">Upload .wav / .mp3 / .ogg</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              )}
             </TabsContent>
 
             <TabsContent value="glyphs" className="flex-1 overflow-y-auto m-0 outline-none p-4 space-y-4 custom-scrollbar">

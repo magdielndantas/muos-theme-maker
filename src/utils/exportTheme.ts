@@ -16,6 +16,10 @@ function mimeToExt(dataUrl: string): string {
     "image/gif":  "gif",
     "image/webp": "webp",
     "image/bmp":  "bmp",
+    "audio/wav":  "wav",
+    "audio/wave": "wav",
+    "audio/mpeg": "mp3",
+    "audio/ogg":  "ogg",
   };
   return map[mime] ?? "png";
 }
@@ -41,6 +45,45 @@ export const exportTheme = async (themeName: string = "MyTheme") => {
       const ext = mimeToExt(data.globalOverlay);
       const b64 = dataUrlToBase64(data.globalOverlay);
       zip.file(`${base}/image/overlay.${ext}`, b64, { base64: true });
+    }
+
+    // Default Wallpaper (image/wall/default.png)
+    if (data.defaultWallpaper) {
+      const ext = mimeToExt(data.defaultWallpaper);
+      const b64 = dataUrlToBase64(data.defaultWallpaper);
+      zip.file(`${wallDir}/default.${ext}`, b64, { base64: true });
+    }
+
+    // Boot Logo (image/bootlogo.bmp)
+    if (data.bootLogo) {
+      const b64 = dataUrlToBase64(data.bootLogo);
+      zip.file(`${base}/image/bootlogo.bmp`, b64, { base64: true });
+    }
+
+    // Preview Image (preview.png)
+    if (data.previewImage) {
+      const ext = mimeToExt(data.previewImage);
+      const b64 = dataUrlToBase64(data.previewImage);
+      zip.file(`${base}/preview.${ext}`, b64, { base64: true });
+    }
+
+    // Fonts
+    for (const [slot, fontData] of Object.entries(data.fonts)) {
+      if (!fontData) continue;
+      const b64 = dataUrlToBase64(fontData);
+      if (slot === "default") {
+        zip.file(`${base}/font/default.bin`, b64, { base64: true });
+      } else {
+        zip.file(`${base}/font/${slot}/default.bin`, b64, { base64: true });
+      }
+    }
+
+    // Sounds
+    for (const [name, src] of Object.entries(data.sounds)) {
+      if (!src) continue;
+      const ext = mimeToExt(src);
+      const b64 = dataUrlToBase64(src);
+      zip.file(`${themeName}/sound/${name}.${ext}`, b64, { base64: true });
     }
 
     for (const screen of data.screens) {
@@ -88,10 +131,9 @@ export const exportTheme = async (themeName: string = "MyTheme") => {
       }
     }
 
-    // 8. Global Scheme (global.ini)
-    const globalSchemeContent = buildIniContent(data.globalScheme);
-    zip.file(`${schemeDir}/global.ini`, globalSchemeContent);
-    zip.file(`${schemeDir}/default.ini`, globalSchemeContent);
+    // 8. Resolution default scheme ({res}/scheme/default.ini)
+    const defaultSchemeContent = buildIniContent(data.globalScheme);
+    zip.file(`${schemeDir}/default.ini`, defaultSchemeContent);
 
     // 9. Global Glyphs (glyph/header, glyph/footer, glyph/bar)
     for (const cat of ["header", "footer", "bar"] as const) {
@@ -105,7 +147,17 @@ export const exportTheme = async (themeName: string = "MyTheme") => {
     }
   }
 
-  // 10. Manifest (theme.json) - includes all resolutions
+  // 9b. Root-level global.ini (from active resolution — applies to all resolutions)
+  const activeData = state.resolutions[state.resolution];
+  if (activeData) {
+    zip.file(`${themeName}/scheme/global.ini`, buildIniContent(activeData.globalScheme));
+  }
+
+  // 10. Metadata files required by muOS
+  zip.file(`${themeName}/active.txt`, themeName);
+  zip.file(`${themeName}/credits.txt`, `Theme: ${themeName}\nCreated with muOS Theme Studio`);
+
+  // 11. Manifest (theme.json) - includes all resolutions
   zip.file(`${themeName}/theme.json`, JSON.stringify({
     name: themeName,
     resolutions,
@@ -120,7 +172,7 @@ export const exportTheme = async (themeName: string = "MyTheme") => {
 function buildIniContent(overrides: Partial<ScreenScheme> = {}): string {
   // Map sections based on prefix or explicit mapping
   const sectionMapping: Record<string, (keyof ScreenScheme)[]> = {
-    background: ["BACKGROUND", "BACKGROUND_ALPHA"],
+    background: ["BACKGROUND", "BACKGROUND_ALPHA", "BACKGROUND_GRADIENT_COLOR", "BACKGROUND_GRADIENT_START", "BACKGROUND_GRADIENT_STOP", "BACKGROUND_GRADIENT_DIRECTION", "BACKGROUND_GRADIENT_DITHER", "BACKGROUND_GRADIENT_BLUR"],
     bar: ["BAR_BACKGROUND", "BAR_BACKGROUND_ALPHA", "BAR_BORDER_ALPHA", "BAR_HEIGHT", "BAR_ICON", "BAR_ICON_ALPHA", "BAR_PROGRESS_ACTIVE_BACKGROUND", "BAR_PROGRESS_ACTIVE_BACKGROUND_ALPHA", "BAR_PROGRESS_BACKGROUND", "BAR_PROGRESS_BACKGROUND_ALPHA", "BAR_PROGRESS_HEIGHT", "BAR_PROGRESS_RADIUS", "BAR_RADIUS"],
     battery: ["BATTERY_ACTIVE", "BATTERY_ACTIVE_ALPHA", "BATTERY_LOW", "BATTERY_LOW_ALPHA", "BATTERY_NORMAL", "BATTERY_NORMAL_ALPHA"],
     bluetooth: ["BLUETOOTH_ACTIVE", "BLUETOOTH_ACTIVE_ALPHA", "BLUETOOTH_NORMAL", "BLUETOOTH_NORMAL_ALPHA"],
@@ -142,7 +194,7 @@ function buildIniContent(overrides: Partial<ScreenScheme> = {}): string {
     status: ["STATUS_ALIGN", "STATUS_PADDING_LEFT", "STATUS_PADDING_RIGHT"],
     terminal: ["TERMINAL_BACKGROUND", "TERMINAL_FOREGROUND"],
     verbose: ["VERBOSE_BOOT_BACKGROUND", "VERBOSE_BOOT_BACKGROUND_ALPHA", "VERBOSE_BOOT_TEXT", "VERBOSE_BOOT_TEXT_ALPHA", "VERBOSE_BOOT_Y_POS"],
-    footer: ["FOOTER_HEIGHT", "FOOTER_BACKGROUND", "FOOTER_BACKGROUND_ALPHA", "FOOTER_TEXT_ALPHA"],
+    footer: ["FOOTER_HEIGHT", "FOOTER_BACKGROUND", "FOOTER_BACKGROUND_ALPHA", "FOOTER_TEXT", "FOOTER_TEXT_ALPHA"],
   };
 
   const lines: string[] = [];

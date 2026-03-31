@@ -23,6 +23,12 @@ export const SCHEME_GROUPS: SchemeGroup[] = [
     fields: [
       { key: "BACKGROUND", label: "Bg Color", type: "color" },
       { key: "BACKGROUND_ALPHA", label: "Bg Alpha", type: "alpha" },
+      { key: "BACKGROUND_GRADIENT_COLOR", label: "Gradient Color", type: "color" },
+      { key: "BACKGROUND_GRADIENT_DIRECTION", label: "Gradient Direction", type: "number", min: 0, max: 2 },
+      { key: "BACKGROUND_GRADIENT_START", label: "Gradient Start", type: "number", min: 0, max: 255 },
+      { key: "BACKGROUND_GRADIENT_STOP", label: "Gradient Stop", type: "number", min: 0, max: 255 },
+      { key: "BACKGROUND_GRADIENT_DITHER", label: "Gradient Dither", type: "number", min: 0, max: 1 },
+      { key: "BACKGROUND_GRADIENT_BLUR", label: "Gradient Blur", type: "number", min: 0, max: 10 },
     ],
   },
   {
@@ -89,6 +95,7 @@ export const SCHEME_GROUPS: SchemeGroup[] = [
       { key: "FOOTER_HEIGHT", label: "Height", type: "number", max: 120 },
       { key: "FOOTER_BACKGROUND", label: "Bg Color", type: "color" },
       { key: "FOOTER_BACKGROUND_ALPHA", label: "Bg Alpha", type: "alpha" },
+      { key: "FOOTER_TEXT", label: "Text Color", type: "color" },
       { key: "FOOTER_TEXT_ALPHA", label: "Text Alpha", type: "alpha" },
       { key: "FONT_FOOTER_PAD_TOP", label: "Text Y", type: "number", min: -50, max: 100 },
       { key: "FONT_FOOTER_ICON_PAD_TOP", label: "Icon Y", type: "number", min: -50, max: 100 },

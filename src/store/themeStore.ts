@@ -9,6 +9,12 @@ export type ScreenScheme = {
   // Background
   BACKGROUND: string;
   BACKGROUND_ALPHA: number;
+  BACKGROUND_GRADIENT_COLOR: string;
+  BACKGROUND_GRADIENT_START: number;
+  BACKGROUND_GRADIENT_STOP: number;
+  BACKGROUND_GRADIENT_DIRECTION: number;
+  BACKGROUND_GRADIENT_DITHER: number;
+  BACKGROUND_GRADIENT_BLUR: number;
 
   // Header
   HEADER_BACKGROUND: string;
@@ -276,6 +282,12 @@ export type ScreenScheme = {
 export const DEFAULT_SCHEME: ScreenScheme = {
   BACKGROUND: "000000",
   BACKGROUND_ALPHA: 255,
+  BACKGROUND_GRADIENT_COLOR: "000000",
+  BACKGROUND_GRADIENT_START: 0,
+  BACKGROUND_GRADIENT_STOP: 255,
+  BACKGROUND_GRADIENT_DIRECTION: 0,
+  BACKGROUND_GRADIENT_DITHER: 0,
+  BACKGROUND_GRADIENT_BLUR: 0,
 
   HEADER_BACKGROUND: "111111",
   HEADER_BACKGROUND_ALPHA: 255,
@@ -571,6 +583,16 @@ export interface ResolutionData {
     footer: Record<string, string | null>;
     bar: Record<string, string | null>;
   };
+  defaultWallpaper: string | null;
+  bootLogo: string | null;
+  previewImage: string | null;
+  fonts: {
+    default: string | null;
+    header: string | null;
+    footer: string | null;
+    panel: string | null;
+  };
+  sounds: Record<string, string | null>;
 }
 
 function createResolutionData(): ResolutionData {
@@ -583,6 +605,11 @@ function createResolutionData(): ResolutionData {
       footer: {},
       bar: {},
     },
+    defaultWallpaper: null,
+    bootLogo: null,
+    previewImage: null,
+    fonts: { default: null, header: null, footer: null, panel: null },
+    sounds: {},
   };
 }
 
@@ -619,6 +646,11 @@ interface ThemeState {
   importScreens: (screens: ScreenContext[]) => void;
   cloneResolution: (from: string, to: string) => void;
   importResolution: (res: string, data: ResolutionData) => void;
+  setDefaultWallpaper: (src: string | null) => void;
+  setBootLogo: (src: string | null) => void;
+  setPreviewImage: (src: string | null) => void;
+  setFont: (slot: "default" | "header" | "footer" | "panel", data: string | null) => void;
+  setSound: (name: string, src: string | null) => void;
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
@@ -953,4 +985,65 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     },
     resolution: res
   })),
+
+  setDefaultWallpaper: (defaultWallpaper) =>
+    set((state) => ({
+      resolutions: {
+        ...state.resolutions,
+        [state.resolution]: {
+          ...state.resolutions[state.resolution],
+          defaultWallpaper,
+        },
+      },
+    })),
+
+  setBootLogo: (bootLogo) =>
+    set((state) => ({
+      resolutions: {
+        ...state.resolutions,
+        [state.resolution]: {
+          ...state.resolutions[state.resolution],
+          bootLogo,
+        },
+      },
+    })),
+
+  setPreviewImage: (previewImage) =>
+    set((state) => ({
+      resolutions: {
+        ...state.resolutions,
+        [state.resolution]: {
+          ...state.resolutions[state.resolution],
+          previewImage,
+        },
+      },
+    })),
+
+  setFont: (slot, data) =>
+    set((state) => ({
+      resolutions: {
+        ...state.resolutions,
+        [state.resolution]: {
+          ...state.resolutions[state.resolution],
+          fonts: {
+            ...state.resolutions[state.resolution].fonts,
+            [slot]: data,
+          },
+        },
+      },
+    })),
+
+  setSound: (name, src) =>
+    set((state) => ({
+      resolutions: {
+        ...state.resolutions,
+        [state.resolution]: {
+          ...state.resolutions[state.resolution],
+          sounds: {
+            ...state.resolutions[state.resolution].sounds,
+            [name]: src,
+          },
+        },
+      },
+    })),
 }));

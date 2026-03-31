@@ -32,6 +32,11 @@ function createEmptyResolutionData(): ResolutionData {
       footer: {},
       bar: {},
     },
+    defaultWallpaper: null,
+    bootLogo: null,
+    previewImage: null,
+    fonts: { default: null, header: null, footer: null, panel: null },
+    sounds: {},
   };
 }
 
@@ -65,13 +70,22 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
 
     const promises: Promise<void>[] = [];
     const files = Object.values(zip.files);
-    
+    let rootGlobalScheme: Partial<ScreenScheme> = {};
+
     for (const file of files) {
       if (file.dir) continue;
       const path = file.name;
       const normPath = path.toLowerCase();
       const res = getResFromPath(normPath);
       const resData = getResData(res);
+
+      // Root-level scheme/global.ini — applies to all resolutions
+      if (normPath.endsWith(".ini") && (normPath.match(/^[^\/]*\/scheme\/global\.ini$/) || normPath === "scheme/global.ini")) {
+        const content = await file.async("string");
+        const parsed = parseIni(content);
+        rootGlobalScheme = { ...rootGlobalScheme, ...parsed };
+        continue;
+      }
 
       // --- Process INIs (Schemes) ---
       if (normPath.endsWith(".ini") && normPath.includes("scheme/")) {
@@ -93,6 +107,25 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
       if (isImage(normPath)) {
         if (normPath.includes("image/overlay.png")) {
           promises.push(getBase64(file).then(src => { resData.globalOverlay = src; }));
+          continue;
+        }
+
+        // Boot logo
+        if (normPath.endsWith("bootlogo.bmp") || normPath.endsWith("bootlogo.png")) {
+          promises.push(getBase64(file).then(src => { resData.bootLogo = src; }));
+          continue;
+        }
+
+        // Preview image
+        if (normPath.match(/\/preview\.(png|jpg|jpeg)$/)) {
+          promises.push(getBase64(file).then(src => { resData.previewImage = src; }));
+          continue;
+        }
+
+        // wall/default.png — fallback global wallpaper
+        const wallDefaultMatch = normPath.match(/image\/wall\/default\.(png|jpg|jpeg|bmp)$/);
+        if (wallDefaultMatch) {
+          promises.push(getBase64(file).then(src => { resData.defaultWallpaper = src; }));
           continue;
         }
 
@@ -142,9 +175,37 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
           continue;
         }
       }
+
+      // --- Process Fonts ---
+      const fontSlotMatch = normPath.match(/\/font\/(header|footer|panel)\/default\.bin$/);
+      if (fontSlotMatch) {
+        const slot = fontSlotMatch[1] as "header" | "footer" | "panel";
+        promises.push(getBase64(file).then(src => { resData.fonts[slot] = src; }));
+        continue;
+      }
+      const fontDefaultMatch = normPath.match(/\/font\/default\.bin$/);
+      if (fontDefaultMatch) {
+        promises.push(getBase64(file).then(src => { resData.fonts.default = src; }));
+        continue;
+      }
+
+      // --- Process Sounds ---
+      const soundMatch = normPath.match(/\/sound\/([^\/]+)\.(wav|mp3|ogg)$/);
+      if (soundMatch) {
+        const name = soundMatch[1];
+        promises.push(getBase64(file).then(src => { resData.sounds[name] = src; }));
+        continue;
+      }
     }
 
     await Promise.all(promises);
+
+    // Apply root-level global scheme to all resolutions
+    if (Object.keys(rootGlobalScheme).length > 0) {
+      for (const data of Object.values(resMap)) {
+        data.globalScheme = { ...data.globalScheme, ...rootGlobalScheme };
+      }
+    }
 
     for (const [res, data] of Object.entries(resMap)) {
       store.importResolution(res, data);
