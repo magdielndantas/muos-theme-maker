@@ -1,10 +1,156 @@
 import { create } from "zustand";
-import { MUOS_SCREENS, MuosScreenDef } from "@/data/muosScreens";
+import {
+  MUOS_SCREENS,
+  MuosScreenDef,
+} from "../data/muosScreens";
+import { GLOBAL_GLYPHS } from "../data/muosGlyphs";
+
+export type ScreenScheme = {
+  // Background
+  BACKGROUND: string;
+  BACKGROUND_ALPHA: number;
+
+  // Header
+  HEADER_BACKGROUND: string;
+  HEADER_BACKGROUND_ALPHA: number;
+  HEADER_TEXT: string;
+  HEADER_TEXT_ALPHA: number;
+  HEADER_HEIGHT: number;
+  HEADER_TEXT_ALIGN: number;
+  HEADER_PADDING_LEFT: number;
+  HEADER_PADDING_RIGHT: number;
+  FONT_HEADER_ICON_PAD_TOP: number;
+  FONT_HEADER_ICON_PAD_BOTTOM: number;
+  FONT_HEADER_PAD_TOP: number;
+  FONT_HEADER_PAD_BOTTOM: number;
+
+  // Footer
+  FOOTER_BACKGROUND: string;
+  FOOTER_BACKGROUND_ALPHA: number;
+  FOOTER_TEXT: string;
+  FOOTER_TEXT_ALPHA: number;
+  FOOTER_HEIGHT: number;
+  FONT_FOOTER_ICON_PAD_TOP: number;
+  FONT_FOOTER_ICON_PAD_BOTTOM: number;
+  FONT_FOOTER_PAD_TOP: number;
+  FONT_FOOTER_PAD_BOTTOM: number;
+
+  // Help text (Footer info)
+  FOOTER_INFO_COLOR: string;
+  FOOTER_INFO_COLOR_ALPHA: number;
+
+  // List Items
+  LIST_DEFAULT_BACKGROUND: string;
+  LIST_DEFAULT_BACKGROUND_ALPHA: number;
+  LIST_DEFAULT_TEXT: string;
+  LIST_DEFAULT_TEXT_ALPHA: number;
+  LIST_FOCUS_BACKGROUND: string;
+  LIST_FOCUS_BACKGROUND_ALPHA: number;
+  LIST_FOCUS_TEXT: string;
+  LIST_FOCUS_TEXT_ALPHA: number;
+
+  // Navigation
+  NAVIGATION_ALIGNMENT: number;
+  NAVIGATION_ICON_SIZE: number;
+
+  // Date/Time
+  DATETIME_TEXT: string;
+  DATETIME_ALPHA: number;
+  DATETIME_ALIGN: number;
+  DATETIME_PADDING_LEFT: number;
+  DATETIME_PADDING_RIGHT: number;
+
+  // Status (Wifi/Battery)
+  STATUS_ALIGN: number;
+  STATUS_PADDING_LEFT: number;
+  STATUS_PADDING_RIGHT: number;
+  BATTERY_NORMAL: string;
+  BATTERY_NORMAL_ALPHA: number;
+  NETWORK_NORMAL: string;
+  NETWORK_NORMAL_ALPHA: number;
+
+  // Terminal
+  TERMINAL_BACKGROUND: string;
+  TERMINAL_FOREGROUND: string;
+
+  // Misc
+  MISC_NAVIGATION_TYPE: number;
+  GRID_NAVIGATION_TYPE: number;
+  GRID_BACKGROUND_ALPHA: number;
+  GRID_LOCATION_X: number;
+  GRID_LOCATION_Y: number;
+};
+
+export const DEFAULT_SCHEME: ScreenScheme = {
+  BACKGROUND: "000000",
+  BACKGROUND_ALPHA: 255,
+
+  HEADER_BACKGROUND: "111111",
+  HEADER_BACKGROUND_ALPHA: 255,
+  HEADER_TEXT: "FFFFFF",
+  HEADER_TEXT_ALPHA: 255,
+  HEADER_HEIGHT: 36,
+  HEADER_TEXT_ALIGN: 1, // Left
+  HEADER_PADDING_LEFT: 14,
+  HEADER_PADDING_RIGHT: 14,
+  FONT_HEADER_ICON_PAD_TOP: 0,
+  FONT_HEADER_ICON_PAD_BOTTOM: 0,
+  FONT_HEADER_PAD_TOP: 0,
+  FONT_HEADER_PAD_BOTTOM: 0,
+
+  FOOTER_BACKGROUND: "111111",
+  FOOTER_BACKGROUND_ALPHA: 255,
+  FOOTER_TEXT: "FFFFFF",
+  FOOTER_TEXT_ALPHA: 255,
+  FOOTER_HEIGHT: 32,
+  FONT_FOOTER_ICON_PAD_TOP: 0,
+  FONT_FOOTER_ICON_PAD_BOTTOM: 0,
+  FONT_FOOTER_PAD_TOP: 0,
+  FONT_FOOTER_PAD_BOTTOM: 0,
+
+  FOOTER_INFO_COLOR: "AAAAAA",
+  FOOTER_INFO_COLOR_ALPHA: 255,
+
+  LIST_DEFAULT_BACKGROUND: "000000",
+  LIST_DEFAULT_BACKGROUND_ALPHA: 0,
+  LIST_DEFAULT_TEXT: "AAAAAA",
+  LIST_DEFAULT_TEXT_ALPHA: 255,
+  LIST_FOCUS_BACKGROUND: "FBBF24",
+  LIST_FOCUS_BACKGROUND_ALPHA: 255,
+  LIST_FOCUS_TEXT: "000000",
+  LIST_FOCUS_TEXT_ALPHA: 255,
+
+  NAVIGATION_ALIGNMENT: 1,
+  NAVIGATION_ICON_SIZE: 24,
+
+  DATETIME_TEXT: "FFFFFF",
+  DATETIME_ALPHA: 255,
+  DATETIME_ALIGN: 1,
+  DATETIME_PADDING_LEFT: 270,
+  DATETIME_PADDING_RIGHT: 14,
+
+  STATUS_ALIGN: 3, // Right
+  STATUS_PADDING_LEFT: 14,
+  STATUS_PADDING_RIGHT: 14,
+  BATTERY_NORMAL: "FFFFFF",
+  BATTERY_NORMAL_ALPHA: 255,
+  NETWORK_NORMAL: "FFFFFF",
+  NETWORK_NORMAL_ALPHA: 255,
+
+  TERMINAL_BACKGROUND: "000000",
+  TERMINAL_FOREGROUND: "00FF00",
+
+  MISC_NAVIGATION_TYPE: 1,
+  GRID_NAVIGATION_TYPE: 1,
+  GRID_BACKGROUND_ALPHA: 128,
+  GRID_LOCATION_X: 0,
+  GRID_LOCATION_Y: 0,
+};
 
 export interface CanvasLayer {
   id: string;
-  name: string;
   src: string;
+  name: string;
   x: number;
   y: number;
   width: number;
@@ -12,153 +158,70 @@ export interface CanvasLayer {
   zIndex: number;
 }
 
-export interface SubAssetEntry {
-  name: string;   // "apps", "explore", etc.
+export type GlyphFile = {
+  name: string;
   src: string | null;
-}
-
-export interface GlyphEntry {
-  name: string;   // "apps", "explore", etc.
-  label: string;  // label legível
-  src: string | null;
-}
-
-// Subconjunto de propriedades do scheme .ini relevantes para o simulador visual
-export interface ScreenScheme {
-  // [header]
-  HEADER_HEIGHT: number;
-  HEADER_BACKGROUND_ALPHA: number;  // 0-255
-  HEADER_BACKGROUND: string;        // hex sem #
-  HEADER_TEXT: string;
-  HEADER_TEXT_ALPHA: number;
-  HEADER_TEXT_ALIGN: number;        // 1=left, 2=center, 3=right
-  // [footer]
-  FOOTER_HEIGHT: number;
-  FOOTER_BACKGROUND_ALPHA: number;
-  FOOTER_BACKGROUND: string;
-  FOOTER_TEXT_ALPHA: number;
-  // [background]
-  BACKGROUND: string;
-  BACKGROUND_ALPHA: number;
-  // [list]
-  LIST_DEFAULT_BACKGROUND_ALPHA: number;
-  LIST_FOCUS_BACKGROUND: string;
-  LIST_FOCUS_BACKGROUND_ALPHA: number;
-  LIST_DEFAULT_TEXT: string;
-  LIST_DEFAULT_TEXT_ALPHA: number;
-  LIST_FOCUS_TEXT: string;
-  LIST_FOCUS_TEXT_ALPHA: number;
-}
-
-export const DEFAULT_SCHEME: ScreenScheme = {
-  HEADER_HEIGHT: 44,
-  HEADER_BACKGROUND_ALPHA: 200,
-  HEADER_BACKGROUND: "000000",
-  HEADER_TEXT: "FFFFFF",
-  HEADER_TEXT_ALPHA: 255,
-  HEADER_TEXT_ALIGN: 1,
-  FOOTER_HEIGHT: 60,
-  FOOTER_BACKGROUND_ALPHA: 200,
-  FOOTER_BACKGROUND: "000000",
-  FOOTER_TEXT_ALPHA: 255,
-  BACKGROUND: "111111",
-  BACKGROUND_ALPHA: 255,
-  LIST_DEFAULT_BACKGROUND_ALPHA: 0,
-  LIST_FOCUS_BACKGROUND: "eab308",
-  LIST_FOCUS_BACKGROUND_ALPHA: 50,
-  LIST_DEFAULT_TEXT: "FFFFFF",
-  LIST_DEFAULT_TEXT_ALPHA: 200,
-  LIST_FOCUS_TEXT: "FFFFFF",
-  LIST_FOCUS_TEXT_ALPHA: 255,
 };
 
 export interface ScreenContext {
   id: string;
   wallpaper: string | null;
-  subAssets: SubAssetEntry[];   // wall/muxlaunch/apps.png etc.
-  staticImage: string | null;   // image/static/{screenid}.png
-  glyphs: GlyphEntry[];         // glyph/{screenid}/{name}.png
-  overlay: string | null;       // image/overlay.png (per-screen)
+  overlay: string | null;
+  staticImage: string | null;
+  scheme: Partial<ScreenScheme>;
+  glyphs: GlyphFile[];
+  subAssets: { name: string; src: string | null }[];
   layers: CanvasLayer[];
-  scheme: ScreenScheme;         // scheme .ini overrides for this screen
 }
 
-// Inicializa um ScreenContext vazio para cada tela do muOS
 function buildInitialScreens(): ScreenContext[] {
   return MUOS_SCREENS.map((def: MuosScreenDef) => ({
     id: def.id,
     wallpaper: null,
     overlay: null,
     staticImage: null,
-    scheme: { ...DEFAULT_SCHEME },
-    glyphs: (def.subAssets ?? []).map((sa) => ({
-      name: sa.name,
-      label: sa.label,
-      src: null,
-    })),
-    subAssets: (def.subAssets ?? []).map((sa) => ({
-      name: sa.name,
-      src: null,
-    })),
+    scheme: {},
+    glyphs: (def.glyphs ?? []).map((g) => ({ name: g.name, src: null })),
+    subAssets: (def.subAssets ?? []).map((sa) => ({ name: sa.name, src: null })),
     layers: [],
   }));
 }
 
 interface ThemeState {
-  // Multi-screen state
   screens: ScreenContext[];
   activeScreenId: string;
-
-  // Global scheme — base for all screens (mirrors global.ini)
   globalScheme: ScreenScheme;
-
-  // Global overlay
   globalOverlay: string | null;
-
-  // UI state
+  globalGlyphs: {
+    header: Record<string, string | null>;
+    footer: Record<string, string | null>;
+    bar: Record<string, string | null>;
+  };
   selectedLayerId: string | null;
   themeName: string;
 
-  // Selectors
   getActiveScreen: () => ScreenContext;
-  /** Returns the effective scheme: globalScheme merged with per-screen overrides */
   getEffectiveScheme: (screenId: string) => ScreenScheme;
-  /** Returns which keys in screen.scheme differ from globalScheme */
   getSchemeOverrideKeys: (screenId: string) => Set<keyof ScreenScheme>;
 
-  // Setters - global
   setThemeName: (name: string) => void;
   setGlobalOverlay: (src: string | null) => void;
   setGlobalScheme: (updates: Partial<ScreenScheme>) => void;
-
-  // Propagation
-  /** Push globalScheme to all screens (replaces per-screen schemes) */
+  setGlobalGlyph: (category: "header" | "footer" | "bar", name: string, src: string | null) => void;
   applyGlobalToAll: () => void;
-  /** Copy scheme from one screen to another */
   copySchemeToScreen: (fromId: string, toId: string) => void;
-  /** Reset screen scheme back to current globalScheme */
   resetScreenSchemeToGlobal: (screenId: string) => void;
-
-  // Setters - screen navigation
   setActiveScreenId: (id: string) => void;
-
-  // Setters - screen-level assets
   setScreenWallpaper: (screenId: string, src: string | null) => void;
   setScreenOverlay: (screenId: string, src: string | null) => void;
   setScreenSubAsset: (screenId: string, name: string, src: string | null) => void;
   setScreenStaticImage: (screenId: string, src: string | null) => void;
   setScreenGlyph: (screenId: string, name: string, src: string | null) => void;
-
-  // Setters - scheme
   updateScreenScheme: (screenId: string, updates: Partial<ScreenScheme>) => void;
-
-  // Setters - layers
   addLayer: (screenId: string, layer: Omit<CanvasLayer, "id" | "zIndex">) => void;
   updateLayer: (screenId: string, layerId: string, updates: Partial<CanvasLayer>) => void;
   removeLayer: (screenId: string, layerId: string) => void;
   setSelectedLayerId: (id: string | null) => void;
-
-  // Import
   importScreens: (screens: ScreenContext[]) => void;
 }
 
@@ -166,6 +229,11 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   screens: buildInitialScreens(),
   activeScreenId: "muxlaunch",
   globalOverlay: null,
+  globalGlyphs: {
+    header: {},
+    footer: {},
+    bar: {},
+  },
   globalScheme: { ...DEFAULT_SCHEME },
   selectedLayerId: null,
   themeName: "",
@@ -177,46 +245,56 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
   getEffectiveScheme: (screenId) => {
     const { screens, globalScheme } = get();
-    const screen = screens.find((s) => s.id === screenId);
-    if (!screen) return globalScheme;
-    return { ...globalScheme, ...screen.scheme };
+    const sc = screens.find((s) => s.id === screenId);
+    if (!sc) return globalScheme;
+    return { ...globalScheme, ...sc.scheme };
   },
 
   getSchemeOverrideKeys: (screenId) => {
     const { screens, globalScheme } = get();
-    const screen = screens.find((s) => s.id === screenId);
-    if (!screen) return new Set();
-    const overrides = new Set<keyof ScreenScheme>();
-    (Object.keys(globalScheme) as (keyof ScreenScheme)[]).forEach((k) => {
-      if (screen.scheme[k] !== globalScheme[k]) overrides.add(k);
+    const sc = screens.find((s) => s.id === screenId);
+    if (!sc) return new Set();
+    const keys = new Set<keyof ScreenScheme>();
+    (Object.keys(sc.scheme) as (keyof ScreenScheme)[]).forEach((k) => {
+      if (sc.scheme[k] !== globalScheme[k]) {
+        keys.add(k);
+      }
     });
-    return overrides;
+    return keys;
   },
 
-  setThemeName: (name) => set({ themeName: name }),
+  setThemeName: (themeName) => set({ themeName }),
 
-  setGlobalOverlay: (src) => set({ globalOverlay: src }),
+  setGlobalOverlay: (globalOverlay) => set({ globalOverlay }),
 
   setGlobalScheme: (updates) =>
     set((state) => ({
       globalScheme: { ...state.globalScheme, ...updates },
     })),
 
+  setGlobalGlyph: (category, name, src) =>
+    set((state) => ({
+      globalGlyphs: {
+        ...state.globalGlyphs,
+        [category]: {
+          ...state.globalGlyphs[category],
+          [name]: src,
+        },
+      },
+    })),
+
   applyGlobalToAll: () =>
     set((state) => ({
-      screens: state.screens.map((s) => ({
-        ...s,
-        scheme: { ...state.globalScheme },
-      })),
+      screens: state.screens.map((s) => ({ ...s, scheme: {} })),
     })),
 
   copySchemeToScreen: (fromId, toId) =>
     set((state) => {
-      const source = state.screens.find((s) => s.id === fromId);
-      if (!source) return state;
+      const fromScreen = state.screens.find((s) => s.id === fromId);
+      if (!fromScreen) return state;
       return {
         screens: state.screens.map((s) =>
-          s.id === toId ? { ...s, scheme: { ...source.scheme } } : s
+          s.id === toId ? { ...s, scheme: { ...fromScreen.scheme } } : s
         ),
       };
     }),
@@ -224,9 +302,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   resetScreenSchemeToGlobal: (screenId) =>
     set((state) => ({
       screens: state.screens.map((s) =>
-        s.id === screenId
-          ? { ...s, scheme: { ...state.globalScheme } }
-          : s
+        s.id === screenId ? { ...s, scheme: {} } : s
       ),
     })),
 
@@ -248,21 +324,36 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
   setScreenSubAsset: (screenId, name, src) =>
     set((state) => ({
-      screens: state.screens.map((s) => {
-        if (s.id !== screenId) return s;
-        return {
-          ...s,
-          subAssets: s.subAssets.map((sa) =>
-            sa.name === name ? { ...sa, src } : sa
-          ),
-        };
-      }),
+      screens: state.screens.map((s) =>
+        s.id === screenId
+          ? {
+              ...s,
+              subAssets: s.subAssets.map((sa) =>
+                sa.name === name ? { ...sa, src } : sa
+              ),
+            }
+          : s
+      ),
     })),
 
   setScreenStaticImage: (screenId, src) =>
     set((state) => ({
       screens: state.screens.map((s) =>
         s.id === screenId ? { ...s, staticImage: src } : s
+      ),
+    })),
+
+  setScreenGlyph: (screenId, name, src) =>
+    set((state) => ({
+      screens: state.screens.map((s) =>
+        s.id === screenId
+          ? {
+              ...s,
+              glyphs: s.glyphs.map((g) =>
+                g.name === name ? { ...g, src } : g
+              ),
+            }
+          : s
       ),
     })),
 
@@ -275,60 +366,46 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       ),
     })),
 
-  setScreenGlyph: (screenId, name, src) =>
-    set((state) => ({
-      screens: state.screens.map((s) => {
-        if (s.id !== screenId) return s;
-        return {
-          ...s,
-          glyphs: s.glyphs.map((g) =>
-            g.name === name ? { ...g, src } : g
-          ),
-        };
-      }),
-    })),
-
   addLayer: (screenId, layer) =>
-    set((state) => {
-      const screen = state.screens.find((s) => s.id === screenId);
-      if (!screen) return state;
-      const newId = Math.random().toString(36).substring(2, 9);
-      const zIndex = screen.layers.length;
-      const newLayer: CanvasLayer = { ...layer, id: newId, zIndex };
-      return {
-        screens: state.screens.map((s) =>
-          s.id === screenId
-            ? { ...s, layers: [...s.layers, newLayer] }
-            : s
-        ),
-        selectedLayerId: newId,
-      };
-    }),
+    set((state) => ({
+      screens: state.screens.map((s) =>
+        s.id === screenId
+          ? {
+              ...s,
+              layers: [
+                ...s.layers,
+                { ...layer, id: crypto.randomUUID(), zIndex: s.layers.length },
+              ],
+            }
+          : s
+      ),
+    })),
 
   updateLayer: (screenId, layerId, updates) =>
     set((state) => ({
-      screens: state.screens.map((s) => {
-        if (s.id !== screenId) return s;
-        return {
-          ...s,
-          layers: s.layers.map((l) =>
-            l.id === layerId ? { ...l, ...updates } : l
-          ),
-        };
-      }),
+      screens: state.screens.map((s) =>
+        s.id === screenId
+          ? {
+              ...s,
+              layers: s.layers.map((l) =>
+                l.id === layerId ? { ...l, ...updates } : l
+              ),
+            }
+          : s
+      ),
     })),
 
   removeLayer: (screenId, layerId) =>
     set((state) => ({
-      screens: state.screens.map((s) => {
-        if (s.id !== screenId) return s;
-        return {
-          ...s,
-          layers: s.layers.filter((l) => l.id !== layerId),
-        };
-      }),
-      selectedLayerId:
-        get().selectedLayerId === layerId ? null : get().selectedLayerId,
+      screens: state.screens.map((s) =>
+        s.id === screenId
+          ? {
+              ...s,
+              layers: s.layers.filter((l) => l.id !== layerId),
+            }
+          : s
+      ),
+      selectedLayerId: null,
     })),
 
   setSelectedLayerId: (id) => set({ selectedLayerId: id }),

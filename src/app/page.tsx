@@ -14,37 +14,38 @@ import {
   Download,
   Upload,
   Image as ImageIcon,
-  Layers,
-  Trash2,
   ChevronRight,
   Monitor,
-  Settings,
   Wifi,
   Cpu,
   Film,
   CheckCircle2,
   Globe,
+  Plus,
+  Trash2,
+  Layout,
+  Folder,
+  FileText,
+  Gamepad2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { SCHEME_GROUPS } from "@/data/schemeGroups";
+import { GLOBAL_GLYPHS } from "@/data/muosGlyphs";
 
 const CANVAS_W = 640;
 const CANVAS_H = 480;
 
-function categoryIcon(cat: "core" | "media" | "settings" | "network" | "system") {
-  const cls = "w-3.5 h-3.5";
-  switch (cat) {
-    case "core":    return <Monitor className={cls} />;
-    case "media":   return <Film className={cls} />;
-    case "settings":return <Settings className={cls} />;
-    case "network": return <Wifi className={cls} />;
-    case "system":  return <Cpu className={cls} />;
-  }
+function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
 }
 
 function readFileAsDataURL(file: File): Promise<string> {
@@ -63,19 +64,16 @@ async function getImageDimensions(src: string): Promise<{ w: number; h: number }
   });
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
-
-// ID virtual para o modo de edição do scheme global
 const GLOBAL_ID = "__global__";
 
 export default function ThemeMakerStudio() {
   const store = useThemeStore();
   const {
     screens, activeScreenId, selectedLayerId, themeName,
-    globalScheme,
-    getActiveScreen, getEffectiveScheme, getSchemeOverrideKeys,
+    globalScheme, globalGlyphs,
+    getActiveScreen, getEffectiveScheme, 
     setThemeName, setActiveScreenId,
-    setGlobalScheme, applyGlobalToAll, copySchemeToScreen, resetScreenSchemeToGlobal,
+    setGlobalScheme, setGlobalGlyph,
     setScreenWallpaper, setScreenOverlay, setScreenSubAsset,
     setScreenStaticImage, setScreenGlyph,
     addLayer, updateLayer, removeLayer, setSelectedLayerId,
@@ -84,12 +82,9 @@ export default function ThemeMakerStudio() {
 
   const isGlobalMode = activeScreenId === GLOBAL_ID;
   const screen = getActiveScreen();
-  // sc = scheme efetivo (global + overrides por tela) — usado no canvas e no inspector
   const sc = isGlobalMode ? globalScheme : getEffectiveScheme(activeScreenId);
-  const overrideKeys = isGlobalMode ? new Set<keyof ScreenScheme>() : getSchemeOverrideKeys(activeScreenId);
   const def = MUOS_SCREENS.find((d) => d.id === activeScreenId);
 
-  // Setter unificado: em modo global edita globalScheme; em modo tela edita screen
   const handleSchemeChange = (updates: Partial<ScreenScheme>) => {
     if (isGlobalMode) {
       setGlobalScheme(updates);
@@ -98,10 +93,6 @@ export default function ThemeMakerStudio() {
     }
   };
 
-  // State para o dropdown "Copy from"
-  const [showCopyFrom, setShowCopyFrom] = useState(false);
-
-  // Sub-asset tab (only for muxlaunch)
   const [activeSubAsset, setActiveSubAsset] = useState<string | null>(null);
 
   useEffect(() => {
@@ -112,7 +103,6 @@ export default function ThemeMakerStudio() {
     }
   }, [activeScreenId, def]);
 
-  // Refs para inputs ocultos
   const wallInputRef = useRef<HTMLInputElement>(null);
   const overlayInputRef = useRef<HTMLInputElement>(null);
   const layerInputRef = useRef<HTMLInputElement>(null);
@@ -120,9 +110,11 @@ export default function ThemeMakerStudio() {
   const staticImageInputRef = useRef<HTMLInputElement>(null);
   const glyphInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  
   const [activeGlyph, setActiveGlyph] = useState<string | null>(null);
+  const [activeGlyphCategory, setActiveGlyphCategory] = useState<"screen" | "header" | "footer" | "bar">("screen");
+  const [canvasZoom, setCanvasZoom] = useState(1);
 
-  // Delete layer via teclado
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Delete" && e.key !== "Backspace") return;
@@ -133,7 +125,6 @@ export default function ThemeMakerStudio() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedLayerId, removeLayer, activeScreenId]);
 
-  // Handlers
   const handleWallUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -150,977 +141,478 @@ export default function ThemeMakerStudio() {
     e.target.value = "";
   }, [activeScreenId, setScreenOverlay]);
 
-  const handleStaticImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const src = await readFileAsDataURL(file);
-    setScreenStaticImage(activeScreenId, src);
-    e.target.value = "";
-  }, [activeScreenId, setScreenStaticImage]);
-
   const handleGlyphUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeGlyph) return;
     const src = await readFileAsDataURL(file);
-    setScreenGlyph(activeScreenId, activeGlyph, src);
-    e.target.value = "";
-  }, [activeScreenId, activeGlyph, setScreenGlyph]);
-
-  const handleSubAssetUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeSubAsset) return;
-    const src = await readFileAsDataURL(file);
-    setScreenSubAsset(activeScreenId, activeSubAsset, src);
-    e.target.value = "";
-  }, [activeScreenId, activeSubAsset, setScreenSubAsset]);
-
-  const handleLayerUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      const src = await readFileAsDataURL(file);
-      const { w, h } = await getImageDimensions(src);
-      addLayer(activeScreenId, { src, name: file.name, x: 0, y: 0, width: w, height: h });
+    if (activeGlyphCategory === "screen") {
+      setScreenGlyph(activeScreenId, activeGlyph, src);
+    } else {
+      setGlobalGlyph(activeGlyphCategory, activeGlyph, src);
     }
     e.target.value = "";
-  }, [activeScreenId, addLayer]);
+  }, [activeGlyph, activeGlyphCategory, activeScreenId, setScreenGlyph, setGlobalGlyph]);
 
-  // Wallpaper a exibir no canvas: se houver sub-asset ativo e ele tiver src, mostra ele
   const activeSubAssetSrc = activeSubAsset
     ? screen.subAssets.find((sa) => sa.name === activeSubAsset)?.src ?? null
     : null;
   const canvasBackground = activeSubAssetSrc ?? screen.wallpaper;
 
-  // Stats para sidebar
   const screenHasContent = (id: string) => {
     const s = screens.find((sc) => sc.id === id);
     if (!s) return false;
     return !!(s.wallpaper || s.subAssets.some((sa) => sa.src) || s.layers.length);
   };
 
-  // Conta telas com scheme sobrescrito em pelo menos 1 campo
-  const screensWithOverrides = screens.filter((s) => {
-    return (Object.keys(globalScheme) as (keyof ScreenScheme)[]).some(
-      (k) => s.scheme[k] !== globalScheme[k]
-    );
-  }).length;
+  const getAlignStyles = (align: number | string, padL: number | string, padR: number | string) => {
+    const a = Number(align);
+    const pL = Number(padL);
+    const pR = Number(padR);
+    if (a === 1) return { left: pL, justifyContent: "flex-start" };
+    if (a === 2) return { left: 0, right: 0, justifyContent: "center" };
+    if (a === 3) return { right: pR, justifyContent: "flex-end" };
+    return {};
+  };
+
+  // Mock Content Renderer for Screen Glyphs
+  const renderMockContent = () => {
+    const getGlyphSrc = (name: string) => screen.glyphs.find(g => g.name === name)?.src;
+
+    if (activeScreenId === "muxlaunch") {
+      const items = [
+        { id: "apps", label: "Applications" },
+        { id: "collection", label: "Collections" },
+        { id: "history", label: "History" },
+        { id: "favourite", label: "Favorites" },
+        { id: "explore", label: "Explore" },
+        { id: "config", label: "Settings" },
+      ];
+      return (
+        <div className="grid grid-cols-3 gap-6 p-10 pt-20">
+          {items.map(item => (
+            <div key={item.id} className="flex flex-col items-center gap-3">
+              <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center p-4 border border-white/10">
+                {getGlyphSrc(item.id) ? <img src={getGlyphSrc(item.id)!} className="w-full h-full object-contain" /> : <Gamepad2 className="w-8 h-8 text-white/10" />}
+              </div>
+              <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{item.label}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (activeScreenId === "muxplore") {
+      const files = [
+        { name: "Super Mario World", type: "rom" },
+        { name: "Nintendo 64", type: "folder" },
+        { name: "Castlevania", type: "rom" },
+        { name: "Sega Genesis", type: "folder" },
+      ];
+      return (
+        <div className="space-y-1 p-8 pt-20">
+          {files.map((f, i) => (
+            <div key={i} className={`flex items-center gap-4 p-3 rounded-lg border ${i === 0 ? "bg-[#eab308]/20 border-[#eab308]/30" : "bg-black/20 border-white/5"}`}>
+              <div className="w-6 h-6 flex items-center justify-center">
+                {getGlyphSrc(f.type) ? <img src={getGlyphSrc(f.type)!} className="w-full h-full object-contain" /> : (f.type === 'folder' ? <Folder className="w-4 h-4 text-white/20" /> : <FileText className="w-4 h-4 text-white/20" />)}
+              </div>
+              <span className={`text-xs font-bold ${i === 0 ? "text-[#eab308]" : "text-white/60"}`}>{f.name}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    return null;
+  };
 
   return (
     <div className="flex flex-col h-screen bg-[#0e0e0e] text-white overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
 
-      {/* ── Hidden file inputs ─────────────────────────────────────────── */}
-      <input ref={wallInputRef}     type="file" className="hidden" accept="image/*" onChange={handleWallUpload} />
-      <input ref={overlayInputRef}  type="file" className="hidden" accept="image/png" onChange={handleOverlayUpload} />
-      <input ref={subAssetInputRef} type="file" className="hidden" accept="image/*" onChange={handleSubAssetUpload} />
-      <input ref={layerInputRef}    type="file" className="hidden" accept="image/*" multiple onChange={handleLayerUpload} />
-      <input ref={staticImageInputRef} type="file" className="hidden" accept="image/png" onChange={handleStaticImageUpload} />
-      <input ref={glyphInputRef}    type="file" className="hidden" accept="image/png" onChange={handleGlyphUpload} />
+      <input ref={wallInputRef} type="file" className="hidden" accept="image/*" onChange={handleWallUpload} />
+      <input ref={overlayInputRef} type="file" className="hidden" accept="image/png" onChange={handleOverlayUpload} />
+      <input ref={subAssetInputRef} type="file" className="hidden" accept="image/*" onChange={async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !activeSubAsset) return;
+        setScreenSubAsset(activeScreenId, activeSubAsset, await readFileAsDataURL(file));
+        e.target.value = "";
+      }} />
+      <input ref={layerInputRef} type="file" className="hidden" accept="image/*" multiple onChange={async (e) => {
+         const files = e.target.files;
+         if (!files) return;
+         for (const file of Array.from(files)) {
+           const src = await readFileAsDataURL(file);
+           const { w, h } = await getImageDimensions(src);
+           addLayer(activeScreenId, { src, name: file.name, x: 0, y: 0, width: w, height: h });
+         }
+         e.target.value = "";
+      }} />
+      <input ref={staticImageInputRef} type="file" className="hidden" accept="image/png" onChange={async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setScreenStaticImage(activeScreenId, await readFileAsDataURL(file));
+        e.target.value = "";
+      }} />
+      <input ref={glyphInputRef} type="file" className="hidden" accept="image/png" onChange={handleGlyphUpload} />
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
+      {/* Header */}
       <header className="flex items-center justify-between px-5 py-3 bg-[#131313] border-b border-white/5 z-10 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-md bg-[#eab308] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[#eab308] flex items-center justify-center shadow-lg shadow-[#eab308]/10">
             <Monitor className="w-4 h-4 text-[#0e0e0e]" />
           </div>
           <div>
-            <h1 className="text-sm font-bold tracking-tight" style={{ fontFamily: "'Manrope', sans-serif" }}>muOS Theme Studio</h1>
-            <p className="text-[10px] text-white/40">640×480 · {MUOS_SCREENS.length} screens</p>
+            <h1 className="text-sm font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">muOS Theme Studio</h1>
+            <p className="text-[10px] text-white/30 font-medium">NEXT GEN THEME ENGINE</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Input
-            className="w-52 !bg-[#1a1a1a] !border-white/10 text-white/80 placeholder:text-white/30 focus:!border-[#eab308]/50"
-            placeholder="Theme name…"
+            className="w-48 !bg-white/5 !border-white/10 text-white/80 placeholder:text-white/20 h-8 text-xs focus:!border-[#eab308]/40"
+            placeholder="Theme Name"
             value={themeName}
             onChange={(e) => setThemeName(e.target.value)}
           />
-      <input
-        ref={importInputRef}
-        type="file"
-        className="hidden"
-        accept=".muxthm,.zip"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          const ok = await importThemeFromZip(file);
-          if (ok && file.name) setThemeName(file.name.replace(/\.[^/.]+$/, ""));
-          e.target.value = "";
-        }}
-      />
-          <Button variant="outline" size="sm" onClick={() => importInputRef.current?.click()}>
-            <Upload className="w-3.5 h-3.5" />
-            Import
-          </Button>
-          <Button 
-            size="sm"
-            onClick={() => exportTheme(themeName || "MyTheme")}
-            className="!bg-transparent !border-none !text-[#3a2900] font-semibold hover:opacity-90 transition-opacity"
-            style={{ background: "linear-gradient(135deg,#fdc425,#e7b102)", color: "#3a2900" }}
-          >
-            <Download className="w-3.5 h-3.5" />
-            Export .muxthm
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => importInputRef.current?.click()} className="text-white/40 hover:text-white hover:bg-white/5 text-[11px] h-8 px-3">
+              <Upload className="w-3.5 h-3.5 mr-2" />
+              Import
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => exportTheme(themeName || "MyTheme")}
+              className="font-bold text-[11px] h-8 px-4 rounded-md shadow-lg shadow-[#eab308]/5"
+              style={{ background: "linear-gradient(135deg,#fdc425,#e7b102)", color: "#3a2900" }}
+            >
+              <Download className="w-3.5 h-3.5 mr-2" />
+              Package .muxthm
+            </Button>
+          </div>
+          <input ref={importInputRef} type="file" className="hidden" accept=".muxthm,.zip" onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const ok = await importThemeFromZip(file);
+            if (ok && file.name) setThemeName(file.name.replace(/\.[^/.]+$/, ""));
+            e.target.value = "";
+          }} />
         </div>
       </header>
 
-      {/* ── Body ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Body */}
+      <div className="grid grid-cols-12 flex-1 overflow-hidden">
 
-        {/* ── Left: Screen List ─────────────────────────────────────────── */}
-        <aside className="w-56 bg-[#131313] border-r border-white/5 flex flex-col overflow-hidden shrink-0">
-          <div className="px-3 py-2.5 border-b border-white/5">
-            <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Screens</p>
-          </div>
-          <div className="flex-1 overflow-y-auto py-1">
+        {/* Sidebar */}
+        <aside className="col-span-2 bg-[#0a0a0a] border-r border-white/5 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto py-3 space-y-4">
+            <div className="px-4">
+               <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveScreenId(GLOBAL_ID)}
+                className={`w-full justify-start gap-3 h-10 px-3 rounded-lg border border-transparent transition-all ${activeScreenId === GLOBAL_ID ? "bg-[#eab308]/10 text-[#eab308] border-[#eab308]/20" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+              >
+                <Globe className="w-4 h-4" />
+                <span className="text-xs font-semibold">Global Scheme</span>
+              </Button>
+            </div>
 
-            {/* Global Scheme entry — sempre no topo */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveScreenId(GLOBAL_ID)}
-              className={`w-full justify-between mb-1 border-b border-white/5 rounded-none ${
-                activeScreenId === GLOBAL_ID
-                  ? "bg-[#3b82f6]/15 text-[#60a5fa]"
-                  : "text-white/70 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              <div className="flex items-center gap-1.5">
-                <Globe className="w-3 h-3" />
-                <span>Global Scheme</span>
-              </div>
-              {screensWithOverrides > 0 && (
-                <span className="text-[9px] bg-white/10 text-white/40 px-1.5 py-0.5 rounded-full">
-                  {screensWithOverrides} override{screensWithOverrides > 1 ? "s" : ""}
-                </span>
-              )}
-            </Button>
-
-            {CATEGORY_ORDER.map((cat) => {
-              const items = MUOS_SCREENS.filter((s) => s.category === cat);
-              return (
-                <div key={cat} className="mb-1">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold text-white/25 uppercase tracking-wider">
-                    {categoryIcon(cat)}
-                    {CATEGORY_LABELS[cat]}
-                  </div>
-                  {items.map((s) => {
+            {CATEGORY_ORDER.map((cat) => (
+              <div key={cat} className="space-y-1">
+                <div className="px-5 py-2 flex items-center gap-2">
+                  <div className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">{CATEGORY_LABELS[cat]}</div>
+                </div>
+                <div className="px-2 space-y-0.5">
+                  {MUOS_SCREENS.filter(s => s.category === cat).map((s) => {
                     const active = s.id === activeScreenId;
                     const hasContent = screenHasContent(s.id);
-                    const hasSchemeOverride = (Object.keys(globalScheme) as (keyof ScreenScheme)[]).some(
-                      (k) => screens.find(sc => sc.id === s.id)?.scheme[k] !== globalScheme[k]
-                    );
                     return (
                       <Button
                         key={s.id}
                         variant="ghost"
                         size="sm"
                         onClick={() => setActiveScreenId(s.id)}
-                        className={`w-full justify-between ${
-                          active
-                            ? "bg-[#eab308]/15 text-[#eab308]"
-                            : "text-white/80 hover:text-white hover:bg-white/10"
-                        }`}
+                        className={`w-full justify-between h-9 px-3 rounded-md group transition-all ${active ? "bg-[#eab308]/10 text-[#eab308]" : "text-white/40 hover:text-white hover:bg-white/5"}`}
                       >
-                        <span className="truncate">{s.label}</span>
-                        <div className="flex items-center gap-1 shrink-0 ml-1">
-                          {hasSchemeOverride && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#eab308]/60" title="Has scheme overrides" />
-                          )}
-                          {hasContent && (
-                            <CheckCircle2 className={`w-3 h-3 ${active ? "text-[#eab308]" : "text-green-500/70"}`} />
-                          )}
-                          {active && <ChevronRight className="w-3 h-3" />}
+                        <span className="text-[11px] truncate font-medium">{s.label}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {hasContent && <CheckCircle2 className={`w-3 h-3 ${active ? "text-[#eab308]" : "text-green-500/40 group-hover:text-green-500/60"}`} />}
+                          {active && <ChevronRight className="w-3 h-3 opacity-50" />}
                         </div>
                       </Button>
                     );
                   })}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </aside>
 
-        {/* ── Center: Canvas ────────────────────────────────────────────── */}
-        <main className="flex-1 flex flex-col bg-[#0e0e0e] overflow-hidden">
-
-          {/* Canvas toolbar */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-[#131313] shrink-0">
-            <span className="text-xs text-white/40 font-mono">
-              {isGlobalMode ? "Global Scheme" : (def?.label ?? activeScreenId)}
-            </span>
-            <span className="text-white/15 text-xs">·</span>
-            <span className="text-xs text-white/25 font-mono">{CANVAS_W}×{CANVAS_H}</span>
-
-            {/* Sub-asset tabs (muxlaunch) */}
-            {def?.hasSubAssets && def.subAssets && (
-              <div className="flex items-center gap-1 ml-3">
-                {def.subAssets.map((sa) => {
-                  const hasSrc = screen.subAssets.find((s) => s.name === sa.name)?.src;
-                  return (
-                    <Button
-                      key={sa.name}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveSubAsset(sa.name)}
-                      className={`text-[10px] font-medium ${
-                        activeSubAsset === sa.name
-                          ? "!bg-[#eab308] !text-[#3a2900] !border-[#eab308]"
-                          : `${hasSrc ? "text-green-400 border-green-500/50" : "text-white/70 border-white/20"} hover:text-white hover:border-white/40`
-                      }`}
-                    >
-                      {sa.label}
-                    </Button>
-                  );
-                })}
+        {/* Canvas Area */}
+        <main className="col-span-7 bg-[#050505] relative flex flex-col overflow-hidden">
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+          
+          <div className="flex items-center justify-between px-6 py-3 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl z-20">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+                <Layout className="w-3.5 h-3.5 text-[#eab308]" />
+                <span className="text-[10px] font-bold text-white/60 tracking-wider uppercase">{def?.label || "Workspace"}</span>
               </div>
-            )}
+            </div>
+            <div className="flex items-center gap-4">
+               <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Zoom</span>
+                  <Slider value={[canvasZoom * 100]} onValueChange={(v) => { const first = Array.isArray(v) ? v[0] : v; setCanvasZoom(Number(first) / 100); }} min={50} max={200} step={5} className="w-32" />
+                  <span className="text-[10px] font-mono text-white/40 min-w-[3rem]">{Math.round(canvasZoom * 100)}%</span>
+               </div>
+            </div>
           </div>
 
-          {/* Canvas area */}
-          <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
+          <div className="flex-1 overflow-auto relative p-24 flex items-center justify-center custom-scrollbar">
             <div
-              className="relative shadow-2xl"
+              className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out"
               style={{
                 width: CANVAS_W,
                 height: CANVAS_H,
-                backgroundColor: `rgba(${parseInt(sc.BACKGROUND.slice(0,2),16)},${parseInt(sc.BACKGROUND.slice(2,4),16)},${parseInt(sc.BACKGROUND.slice(4,6),16)},${(sc.BACKGROUND_ALPHA/255).toFixed(2)})`,
+                transform: `scale(${canvasZoom})`,
+                backgroundColor: `#${sc.BACKGROUND}`,
+                imageRendering: "pixelated"
               }}
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) setSelectedLayerId(null);
-              }}
+              onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedLayerId(null); }}
             >
-              {/* Wallpaper */}
-              {canvasBackground ? (
-                <img
-                  src={canvasBackground}
-                  alt="wallpaper"
-                  className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                  draggable={false}
-                />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-                  <ImageIcon className="w-8 h-8 text-white/10" />
-                  <p className="text-xs text-white/20">
-                    {isGlobalMode
-                      ? "Global Scheme — edite as cores base na coluna direita →"
-                      : activeSubAsset
-                        ? `Upload wallpaper for "${activeSubAsset}" using the inspector →`
-                        : "Upload a wallpaper using the inspector →"}
-                  </p>
-                </div>
-              )}
+              {canvasBackground && <img src={canvasBackground} alt="wallpaper" className="absolute inset-0 w-full h-full object-cover pointer-events-none" draggable={false} />}
+              {screen.overlay && <img src={screen.overlay} alt="overlay" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10" draggable={false} />}
+              {screen.staticImage && <img src={screen.staticImage} alt="static" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[8]" draggable={false} />}
 
-              {/* Overlay */}
-              {screen.overlay && (
-                <img
-                  src={screen.overlay}
-                  alt="overlay"
-                  className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                  style={{ zIndex: 10 }}
-                  draggable={false}
-                />
-              )}
-
-              {/* ── muOS Chrome — valores lidos do scheme da tela ───────────────────────────
-                  Header height: sc.HEADER_HEIGHT, Footer: CANVAS_H - sc.FOOTER_HEIGHT
-              ─────────────────────────────────────────────────────────── */}
-
-              {/* HEADER */}
-              <div
-                className="absolute left-0 right-0 top-0 flex items-center justify-between pointer-events-none"
-                style={{
-                  height: sc.HEADER_HEIGHT,
-                  zIndex: 50,
-                  background: `rgba(${parseInt(sc.HEADER_BACKGROUND.slice(0,2),16)},${parseInt(sc.HEADER_BACKGROUND.slice(2,4),16)},${parseInt(sc.HEADER_BACKGROUND.slice(4,6),16)},${(sc.HEADER_BACKGROUND_ALPHA/255).toFixed(2)})`,
-                  borderBottom: "1px solid rgba(255,255,255,0.07)",
+              {/* muOS Header */}
+              <div 
+                className="absolute top-0 left-0 right-0 flex items-center overflow-hidden z-[50]"
+                style={{ 
+                   height: sc.HEADER_HEIGHT, 
+                   backgroundColor: `rgba(${parseInt(sc.HEADER_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.HEADER_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.HEADER_BACKGROUND.slice(4, 6), 16)}, ${sc.HEADER_BACKGROUND_ALPHA / 255})` 
                 }}
               >
-                {/* Left: glyph placeholder + screen title */}
-                <div className={`flex items-center gap-2 px-3 ${
-                  sc.HEADER_TEXT_ALIGN === 2 ? "flex-1 justify-center" :
-                  sc.HEADER_TEXT_ALIGN === 3 ? "flex-1 justify-end" : ""
-                }`}>
-                  <div className="w-5 h-5 rounded bg-white/10 flex items-center justify-center">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="1.5" stroke="white" strokeOpacity="0.5" strokeWidth="1.2"/></svg>
-                  </div>
-                  <span
-                    className="text-[13px] font-semibold tracking-wide"
-                    style={{
-                      fontFamily: "'Space Grotesk', monospace",
-                      color: `#${sc.HEADER_TEXT}`,
-                      opacity: sc.HEADER_TEXT_ALPHA / 255,
-                    }}
-                  >
-                    {def?.label ?? activeScreenId}
-                  </span>
-                </div>
-                {/* Right: status bar icons */}
-                <div className="flex items-center gap-3 px-3">
-                  {/* WiFi */}
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M7 9.5a1 1 0 100 2 1 1 0 000-2z" fill="white" fillOpacity="0.7"/><path d="M4.29 7.21A3.99 3.99 0 017 6c1.04 0 1.99.4 2.71 1.06" stroke="white" strokeOpacity="0.7" strokeWidth="1.2" strokeLinecap="round"/><path d="M1.76 4.76A7 7 0 017 3c2.03 0 3.87.82 5.24 2.15" stroke="white" strokeOpacity="0.5" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                  {/* Battery */}
-                  <div className="flex items-center gap-0.5">
-                    <div className="relative w-7 h-3.5 rounded-sm" style={{ border: "1.2px solid rgba(255,255,255,0.5)" }}>
-                      <div className="absolute left-0.5 top-0.5 bottom-0.5 rounded-sm bg-green-400" style={{ width: "65%" }} />
-                    </div>
-                    <div className="w-0.5 h-1.5 rounded-r-sm bg-white/40" />
-                  </div>
-                  {/* Clock */}
-                  <span className="text-white/70 text-[11px] font-mono">12:34</span>
-                </div>
-              </div>
-
-              {/* CONTENT AREA — abaixo do header, acima do footer */}
-              <div
-                className="absolute left-0 right-0 pointer-events-none"
-                style={{ top: sc.HEADER_HEIGHT, height: CANVAS_H - sc.HEADER_HEIGHT - sc.FOOTER_HEIGHT, zIndex: 30 }}
-              >
-                {/* Safe-zone boundary indicator */}
-                <div className="absolute inset-0 border border-dashed border-white/5 m-1 rounded pointer-events-none" />
-
-                {/* Static image overlay (image/static/{screenid}.png) */}
-                {screen.staticImage && (
-                  <img
-                    src={screen.staticImage}
-                    alt="static"
-                    className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                    style={{ zIndex: 5 }}
-                    draggable={false}
-                  />
-                )}
-
-                {/* LIST layout placeholder — only when no image/wallpaper set */}
-                {def?.layout === "list" && !canvasBackground && (() => {
-                  if (def.hasSubAssets && def.subAssets?.length) {
-                    return (
-                      <div className="absolute inset-0 flex flex-col justify-center px-4 gap-1">
-                        {def.subAssets.map((sa) => {
-                          const isActive = activeSubAsset === sa.name;
-                          const hasSrc = !!screen.subAssets.find(s => s.name === sa.name)?.src;
-                          return (
-                            <div
-                              key={sa.name}
-                              className="px-4 py-2 rounded flex items-center justify-between"
-                              style={{
-                                background: isActive
-                                  ? `rgba(${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(0,2),16)},${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(2,4),16)},${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(4,6),16)},${(sc.LIST_FOCUS_BACKGROUND_ALPHA/255).toFixed(2)})`
-                                  : `rgba(255,255,255,${(sc.LIST_DEFAULT_BACKGROUND_ALPHA/255*0.04).toFixed(3)})`,
-                                borderLeft: isActive ? `3px solid #${sc.LIST_FOCUS_BACKGROUND}` : "3px solid transparent",
-                              }}
-                            >
-                              <span
-                                className="text-xs font-semibold"
-                                style={{
-                                  fontFamily: "'Space Grotesk', monospace",
-                                  color: isActive ? `#${sc.LIST_FOCUS_TEXT}` : `#${sc.LIST_DEFAULT_TEXT}`,
-                                  opacity: isActive ? sc.LIST_FOCUS_TEXT_ALPHA / 255 : sc.LIST_DEFAULT_TEXT_ALPHA / 255,
-                                }}
-                              >{sa.label}</span>
-                              {hasSrc
-                                ? <span className="text-[9px] text-green-500/60">image set</span>
-                                : <span className="text-[9px] text-white/20">no image</span>
-                              }
-                            </div>
-                          );
-                        })}
-                        <p className="text-[9px] text-white/20 text-center mt-2">
-                          Each item shows its own full-screen background image
-                        </p>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="absolute inset-0 flex flex-col justify-center px-4 gap-1">
-                      {["Item 1", "Item 2 (selected)", "Item 3", "Item 4", "Item 5"].map((item, i) => (
-                        <div
-                          key={i}
-                          className="px-4 py-2.5 rounded"
-                          style={{
-                            background: i === 1
-                              ? `rgba(${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(0,2),16)},${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(2,4),16)},${parseInt(sc.LIST_FOCUS_BACKGROUND.slice(4,6),16)},${(sc.LIST_FOCUS_BACKGROUND_ALPHA/255).toFixed(2)})`
-                              : "rgba(255,255,255,0.04)",
-                            borderLeft: i === 1 ? `3px solid #${sc.LIST_FOCUS_BACKGROUND}` : "3px solid transparent",
-                          }}
-                        >
-                          <span
-                            className="text-sm"
-                            style={{
-                              fontFamily: "'Space Grotesk', monospace",
-                              color: i === 1 ? `#${sc.LIST_FOCUS_TEXT}` : `#${sc.LIST_DEFAULT_TEXT}`,
-                              opacity: i === 1 ? sc.LIST_FOCUS_TEXT_ALPHA/255 : sc.LIST_DEFAULT_TEXT_ALPHA/255,
-                              fontWeight: i === 1 ? 600 : 400,
-                            }}
-                          >{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-
-                {/* SPLASH — tela estacionária sem lista */}
-                {def?.layout === "splash" && !canvasBackground && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 opacity-20">
-                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                      <rect x="2" y="2" width="36" height="36" rx="8" stroke="white" strokeWidth="2"/>
-                      <path d="M13 20h14M20 13v14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    <span className="text-white text-[11px]">splash / static screen</span>
-                  </div>
-                )}
-              </div>
-
-              {/* FOOTER BAR — dinâmico baseado no scheme */}
-              <div
-                className="absolute left-0 right-0 flex items-center justify-between pointer-events-none"
-                style={{
-                  top: CANVAS_H - sc.FOOTER_HEIGHT,
-                  height: sc.FOOTER_HEIGHT,
-                  zIndex: 50,
-                  background: `rgba(${parseInt(sc.FOOTER_BACKGROUND.slice(0,2),16)},${parseInt(sc.FOOTER_BACKGROUND.slice(2,4),16)},${parseInt(sc.FOOTER_BACKGROUND.slice(4,6),16)},${(sc.FOOTER_BACKGROUND_ALPHA/255).toFixed(2)})`,
-                  borderTop: "1px solid rgba(255,255,255,0.07)",
-                }}
-              >
-                {/* Left hints: B=Back */}
-                <div className="flex items-center gap-3 px-4">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: "#dc2626", opacity: sc.FOOTER_TEXT_ALPHA/255 }}>B</div>
-                    <span className="text-[10px]" style={{ color: `#${sc.HEADER_TEXT}`, opacity: sc.FOOTER_TEXT_ALPHA/255 }}>Back</span>
-                  </div>
-                </div>
-                {/* Right hints: A=Select */}
-                <div className="flex items-center gap-3 px-4">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px]" style={{ color: `#${sc.HEADER_TEXT}`, opacity: sc.FOOTER_TEXT_ALPHA/255 }}>Select</span>
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: "#16a34a", opacity: sc.FOOTER_TEXT_ALPHA/255 }}>A</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Layers (react-rnd) — rendered between overlay and chrome */}
-              {screen.layers.map((layer) => (
-                <Rnd
-                  key={layer.id}
-                  size={{ width: layer.width, height: layer.height }}
-                  position={{ x: layer.x, y: layer.y }}
-                  onDragStop={(_, d) => updateLayer(activeScreenId, layer.id, { x: d.x, y: d.y })}
-                  onResizeStop={(_, __, ref, ___, pos) => {
-                    updateLayer(activeScreenId, layer.id, {
-                      width: parseInt(ref.style.width),
-                      height: parseInt(ref.style.height),
-                      ...pos,
-                    });
-                  }}
-                  bounds="parent"
-                  style={{ zIndex: layer.zIndex + 20 }}
-                  className={
-                    selectedLayerId === layer.id
-                      ? "ring-2 ring-[#eab308] ring-offset-1 ring-offset-[#0e0e0e]"
-                      : ""
-                  }
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    setSelectedLayerId(layer.id);
+                {/* Header Title alignment */}
+                <div 
+                  className="absolute inset-y-0 flex items-center gap-2"
+                  style={{ 
+                    ...getAlignStyles(sc.HEADER_TEXT_ALIGN, sc.HEADER_PADDING_LEFT, sc.HEADER_PADDING_RIGHT),
+                    color: `#${sc.HEADER_TEXT}`,
+                    opacity: sc.HEADER_TEXT_ALPHA / 255,
+                    paddingTop: sc.FONT_HEADER_PAD_TOP,
+                    paddingBottom: sc.FONT_HEADER_PAD_BOTTOM
                   }}
                 >
-                  <img
-                    src={layer.src}
-                    alt={layer.name}
-                    className="w-full h-full object-contain pointer-events-none"
-                    draggable={false}
-                  />
+                  <div className="w-5 h-5 flex items-center justify-center transform" style={{ transform: `translateY(${sc.FONT_HEADER_ICON_PAD_TOP}px)` }}>
+                    {globalGlyphs.bar["icon_menu"] ? <img src={globalGlyphs.bar["icon_menu"]!} className="w-full h-full object-contain" alt="menu icon" /> : <Monitor className="w-3.5 h-3.5" />}
+                  </div>
+                  <span className="text-xs font-bold tracking-tight uppercase">{def?.label}</span>
+                </div>
+
+                {/* Clock alignment */}
+                <div 
+                  className="absolute inset-y-0 flex items-center"
+                  style={{ 
+                    ...getAlignStyles(sc.DATETIME_ALIGN, sc.DATETIME_PADDING_LEFT, sc.DATETIME_PADDING_RIGHT),
+                    color: `#${sc.DATETIME_TEXT}`,
+                    opacity: sc.DATETIME_ALPHA / 255
+                  }}
+                >
+                  <span className="text-[11px] font-mono font-bold tracking-widest leading-none">12:34</span>
+                </div>
+
+                {/* Status (Wifi/Battery) alignment */}
+                <div 
+                   className="absolute inset-y-0 flex items-center gap-3"
+                   style={{ 
+                     ...getAlignStyles(sc.STATUS_ALIGN, sc.STATUS_PADDING_LEFT, sc.STATUS_PADDING_RIGHT)
+                   }}
+                >
+                   <div className="w-4 h-4 flex items-center justify-center">
+                     {globalGlyphs.header["network_normal"] ? <img src={globalGlyphs.header["network_normal"]!} className="w-full h-full object-contain" alt="wifi icon" /> : <Wifi className="w-3.5 h-3.5 text-white/50" />}
+                   </div>
+                   <div className="w-6 h-3 rounded-[1px] border border-white/20 relative" style={{ borderColor: `#${sc.BATTERY_NORMAL}`, opacity: sc.BATTERY_NORMAL_ALPHA / 255 }}>
+                     <div className="absolute left-[1px] top-[1px] bottom-[1px] bg-white/60" style={{ width: "60%", backgroundColor: `#${sc.BATTERY_NORMAL}` }} />
+                   </div>
+                </div>
+              </div>
+
+              {/* Screen Content Visualization (Mock) */}
+              <div className="absolute inset-0 z-[15]">
+                {renderMockContent()}
+              </div>
+
+              {/* Layers */}
+              {screen.layers.sort((a,b) => a.zIndex - b.zIndex).map((l) => (
+                <Rnd
+                  key={l.id}
+                  size={{ width: l.width, height: l.height }}
+                  position={{ x: l.x, y: l.y }}
+                  onDragStop={(_, d) => updateLayer(activeScreenId, l.id, { x: d.x, y: d.y })}
+                  onResizeStop={(_, __, ref, ___, pos) => updateLayer(activeScreenId, l.id, { width: parseInt(ref.style.width), height: parseInt(ref.style.height), ...pos })}
+                  bounds="parent"
+                  style={{ zIndex: 20 + l.zIndex }}
+                  className={selectedLayerId === l.id ? "ring-2 ring-[#eab308] ring-inset" : ""}
+                  onMouseDown={(e) => { e.stopPropagation(); setSelectedLayerId(l.id); }}
+                >
+                  <img src={l.src} alt={l.name} className="w-full h-full object-contain pointer-events-none" draggable={false} />
                 </Rnd>
               ))}
+
+              {/* muOS Footer */}
+              <div 
+                 className="absolute bottom-0 left-0 right-0 z-[50]"
+                 style={{ 
+                   height: sc.FOOTER_HEIGHT, 
+                   backgroundColor: `rgba(${parseInt(sc.FOOTER_BACKGROUND.slice(0, 2), 16)}, ${parseInt(sc.FOOTER_BACKGROUND.slice(2, 4), 16)}, ${parseInt(sc.FOOTER_BACKGROUND.slice(4, 6), 16)}, ${sc.FOOTER_BACKGROUND_ALPHA / 255})` 
+                 }}
+              >
+                 <div className="flex items-center justify-between h-full px-4" style={{ color: `#${sc.FOOTER_TEXT}`, opacity: sc.FOOTER_TEXT_ALPHA / 255 }}>
+                    <div className="flex items-center gap-2">
+                       <span className="text-[9px] font-bold bg-[#dc2626] text-white w-4 h-4 rounded-full flex items-center justify-center">B</span>
+                       <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold uppercase tracking-wider">Select</span>
+                       <span className="text-[9px] font-bold bg-[#16a34a] text-white w-4 h-4 rounded-full flex items-center justify-center">A</span>
+                    </div>
+                 </div>
+              </div>
             </div>
           </div>
         </main>
 
-        {/* ── Right: Inspector ──────────────────────────────────────────── */}
-        <aside className="w-64 bg-[#131313] border-l border-white/5 flex flex-col overflow-hidden shrink-0">
-          <div className="px-3 py-2.5 border-b border-white/5 shrink-0">
-            <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Inspector</p>
-            <p className="text-xs text-white/50 mt-0.5 truncate">{def?.label}</p>
-          </div>
+        {/* Inspector */}
+        <aside className="col-span-3 bg-[#0a0a0a] border-l border-white/5 flex flex-col overflow-hidden">
+          <Tabs defaultValue="scheme" className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="grid w-full grid-cols-3 bg-[#0d0d0d] border-b border-white/5 h-11 shrink-0 p-0 rounded-none">
+              <TabsTrigger value="scheme" className="text-[10px] uppercase font-bold tracking-widest rounded-none h-full data-[state=active]:bg-white/5 data-[state=active]:text-[#eab308] border-b-2 border-transparent data-[state=active]:border-[#eab308]">Scheme</TabsTrigger>
+              <TabsTrigger value="assets" className="text-[10px] uppercase font-bold tracking-widest rounded-none h-full data-[state=active]:bg-white/5 data-[state=active]:text-[#eab308] border-b-2 border-transparent data-[state=active]:border-[#eab308]">Assets</TabsTrigger>
+              <TabsTrigger value="glyphs" className="text-[10px] uppercase font-bold tracking-widest rounded-none h-full data-[state=active]:bg-white/5 data-[state=active]:text-[#eab308] border-b-2 border-transparent data-[state=active]:border-[#eab308]">Glyphs</TabsTrigger>
+            </TabsList>
 
-          <div className="flex-1 overflow-y-auto">
-            {/* Wallpaper section */}
-            <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
-              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">
-                {activeSubAsset ? `Wallpaper · "${activeSubAsset}"` : "Wallpaper"}
-              </p>
-
-              {/* Preview do wallpaper */}
-              <div
-                onClick={() => activeSubAsset ? subAssetInputRef.current?.click() : wallInputRef.current?.click()}
-                className="relative aspect-video w-full rounded-md overflow-hidden bg-[#1a1a1a] border border-white/8 cursor-pointer hover:border-[#eab308]/40 transition-colors group"
-                style={{ backgroundImage: canvasBackground ? `url(${canvasBackground})` : "none", backgroundSize: "cover", backgroundPosition: "center" }}
-              >
-                {!canvasBackground && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                    <ImageIcon className="w-5 h-5 text-white/20" />
-                    <span className="text-[10px] text-white/30">Click to upload</span>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-[10px] text-white font-medium">Replace</span>
-                </div>
-              </div>
-
-              {canvasBackground && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => activeSubAsset
-                  ? setScreenSubAsset(activeScreenId, activeSubAsset, null)
-                  : setScreenWallpaper(activeScreenId, null)
-                }
-                className="mt-1.5 w-full text-[10px] text-red-400 hover:text-red-300 justify-center"
-              >
-                Remove wallpaper
-              </Button>
-              )}
-            </Card>
-
-            {/* Sub-assets list (muxlaunch) */}
-            {def?.hasSubAssets && def.subAssets && (
-              <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
-                <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">Sub-Assets</p>
-                <div className="space-y-1">
-                  {def.subAssets.map((sa) => {
-                    const entry = screen.subAssets.find((s) => s.name === sa.name);
-                    const hasSrc = !!entry?.src;
-                    return (
-                      <div
-                        key={sa.name}
-                        className={`flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
-                          activeSubAsset === sa.name
-                            ? "bg-[#eab308]/10 text-[#eab308]"
-                            : "hover:bg-white/5 text-white/50 hover:text-white/80"
-                        }`}
-                        onClick={() => setActiveSubAsset(sa.name)}
-                      >
-                        <span className="text-xs">{sa.label}</span>
-                        <div className="flex items-center gap-1">
-                          {hasSrc && <CheckCircle2 className="w-3 h-3 text-green-500/70" />}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveSubAsset(sa.name);
-                              setTimeout(() => subAssetInputRef.current?.click(), 50);
-                            }}
-                            className="text-white/50 hover:text-white"
-                          >
-                            <Upload className="w-3 h-3" />
-                          </Button>
-                          {hasSrc && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setScreenSubAsset(activeScreenId, sa.name, null);
-                            }}
-                            className="text-red-400/70 hover:text-red-300"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+            <TabsContent value="scheme" className="flex-1 overflow-y-auto m-0 outline-none p-4 custom-scrollbar">
+              <Accordion className="space-y-2">
+                {SCHEME_GROUPS.map((group) => (
+                  <AccordionItem value={group.id} key={group.id} className="border-white/5 border rounded-lg bg-white/[0.02] overflow-hidden">
+                    <AccordionTrigger className="px-4 py-3 text-[10px] font-bold text-white/50 hover:no-underline hover:text-white uppercase tracking-widest transition-colors">{group.title}</AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 space-y-4">
+                      {group.fields.map((field) => (
+                        <div key={field.key} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <Label className="text-[10px] font-bold text-white/30 uppercase tracking-wider">{field.label}</Label>
+                            <span className="text-[10px] font-mono text-white/40">{sc[field.key]}</span>
+                          </div>
+                          {field.type === 'color' ? (
+                            <div className="flex gap-2">
+                               <Input type="color" value={`#${sc[field.key] as string}`} onChange={(e) => handleSchemeChange({ [field.key]: e.target.value.slice(1).toUpperCase() })} className="w-full h-8 p-0 border-none bg-transparent cursor-pointer" />
+                               <Input value={sc[field.key] as string} onChange={(e) => handleSchemeChange({ [field.key]: e.target.value.toUpperCase() })} className="w-20 h-8 !bg-black/40 !border-white/10 font-mono text-[10px] text-center" maxLength={6} />
+                            </div>
+                          ) : (
+                            <Slider value={[Number(sc[field.key])]} min={field.min ?? 0} max={field.max ?? (field.type === 'alpha' ? 255 : 100)} onValueChange={(v) => { const first = Array.isArray(v) ? v[0] : v; handleSchemeChange({ [field.key]: first }); }} />
                           )}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
-            )}
-
-            {/* Glyphs section (screens with sub-assets, e.g. muxlaunch) */}
-            {def?.hasSubAssets && def.subAssets && screen.glyphs.length > 0 && (
-              <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
-                <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">Glyphs (glyph/{def.id}/)</p>
-                <div className="space-y-1">
-                  {screen.glyphs.map((g) => (
-                    <div
-                      key={g.name}
-                      className="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-white/5 group"
-                    >
-                      <div className="flex items-center gap-2">
-                        {g.src
-                          ? <img src={g.src} alt={g.name} className="w-5 h-5 object-contain rounded" />
-                          : <div className="w-5 h-5 rounded bg-white/8 border border-dashed border-white/15" />
-                        }
-                        <span className={`text-xs ${g.src ? "text-white/80" : "text-white/50"}`}>{g.label}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {g.src && <CheckCircle2 className="w-3 h-3 text-green-500/70" />}
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => { setActiveGlyph(g.name); setTimeout(() => glyphInputRef.current?.click(), 50); }}
-                          className="text-white/50 hover:text-white"
-                          title={`Upload ${g.name}.png`}
-                        >
-                          <Upload className="w-3 h-3" />
-                        </Button>
-                        {g.src && (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setScreenGlyph(activeScreenId, g.name, null)}
-                          className="text-red-400/70 hover:text-red-300"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {/* Static Image section (image/static/{screenid}.png) */}
-            <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
-              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">Static Image</p>
-              <div
-                onClick={() => staticImageInputRef.current?.click()}
-                className="relative h-10 w-full rounded-md bg-[#1a1a1a] border border-dashed border-white/10 cursor-pointer hover:border-[#eab308]/30 transition-colors flex items-center justify-center gap-2 group"
-              >
-                {screen.staticImage ? (
-                  <span className="text-[10px] text-green-400">static/{def?.id}.png loaded</span>
-                ) : (
-                  <>
-                    <ImageIcon className="w-3.5 h-3.5 text-white/20 group-hover:text-white/40" />
-                    <span className="text-[10px] text-white/30 group-hover:text-white/50">image/static/{def?.id}.png</span>
-                  </>
-                )}
-              </div>
-              {screen.staticImage && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setScreenStaticImage(activeScreenId, null)}
-                className="mt-1 w-full text-[10px] text-red-400 hover:text-red-300 justify-center"
-              >
-                Remove static image
-              </Button>
-              )}
-            </Card>
-
-            {/* Scheme section */}
-            <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
-              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-3">Scheme</p>
-
-              {/* ── reutilizável inline: color + alpha slider ── */}
-              {/* Header */}
-              <p className="text-[9px] font-semibold text-white/20 uppercase tracking-wider mb-2 mt-1">Header</p>
-              <div className="space-y-3">
-
-                {/* Height */}
-                <div className="flex items-center justify-between">
-                  <Label className="text-[10px] text-white/40 w-20">Height</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Slider
-                      value={[sc.HEADER_HEIGHT]}
-                      min={0}
-                      max={120}
-                      onValueChange={(val) => updateScreenScheme(activeScreenId, { HEADER_HEIGHT: Array.isArray(val) ? val[0] : val })}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] text-white/50 w-6 text-right">{sc.HEADER_HEIGHT}</span>
-                  </div>
-                </div>
-
-                {/* Background color */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Bg color</label>
-                  <Input
-                    type="color"
-                    value={`#${sc.HEADER_BACKGROUND}`}
-                    onChange={(e) => updateScreenScheme(activeScreenId, { HEADER_BACKGROUND: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
-                  />
-                </div>
-
-                {/* Background alpha */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Bg alpha</label>
-                  <div className="flex items-center gap-1.5">
-                    <Slider
-                      value={[sc.HEADER_BACKGROUND_ALPHA]}
-                      min={0}
-                      max={255}
-                      onValueChange={(val) => updateScreenScheme(activeScreenId, { HEADER_BACKGROUND_ALPHA: Array.isArray(val) ? val[0] : val })}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] text-white/50 w-6 text-right">{sc.HEADER_BACKGROUND_ALPHA}</span>
-                  </div>
-                </div>
-
-                {/* Text color */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Text color</label>
-                  <Input
-                    type="color"
-                    value={`#${sc.HEADER_TEXT}`}
-                    onChange={(e) => updateScreenScheme(activeScreenId, { HEADER_TEXT: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
-                  />
-                </div>
-
-                {/* Text alpha */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Text alpha</label>
-                  <div className="flex items-center gap-1.5">
-                    <Slider
-                      value={[sc.HEADER_TEXT_ALPHA]}
-                      min={0}
-                      max={255}
-                      onValueChange={(val) => updateScreenScheme(activeScreenId, { HEADER_TEXT_ALPHA: Array.isArray(val) ? val[0] : val })}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] text-white/50 w-6 text-right">{sc.HEADER_TEXT_ALPHA}</span>
-                  </div>
-                </div>
-
-                {/* Text align */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Text align</label>
-                    <div className="flex gap-1">
-                      {([1, 2, 3] as const).map((v) => (
-                        <Button
-                          key={v}
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => updateScreenScheme(activeScreenId, { HEADER_TEXT_ALIGN: v })}
-                          className={`${
-                            sc.HEADER_TEXT_ALIGN === v ? "bg-[#eab308] text-[#3a2900]" : "bg-white/5 text-white/30 hover:text-white/60"
-                          }`}
-                        >
-                          {v === 1 ? "L" : v === 2 ? "C" : "R"}
-                        </Button>
                       ))}
-                    </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <p className="text-[9px] font-semibold text-white/20 uppercase tracking-wider mb-2 mt-4">Footer</p>
-              <div className="space-y-3">
-
-                {/* Height */}
-                <div className="flex items-center justify-between">
-                  <Label className="text-[10px] text-white/40 w-20">Height</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Slider
-                      value={[sc.FOOTER_HEIGHT]}
-                      min={0}
-                      max={120}
-                      onValueChange={(val) => updateScreenScheme(activeScreenId, { FOOTER_HEIGHT: Array.isArray(val) ? val[0] : val })}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] text-white/50 w-6 text-right">{sc.FOOTER_HEIGHT}</span>
-                  </div>
-                </div>
-
-                {/* Background color */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Bg color</label>
-                  <Input
-                    type="color"
-                    value={`#${sc.FOOTER_BACKGROUND}`}
-                    onChange={(e) => updateScreenScheme(activeScreenId, { FOOTER_BACKGROUND: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
-                  />
-                </div>
-
-                {/* Background alpha */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Bg alpha</label>
-                  <div className="flex items-center gap-1.5">
-                    <Slider
-                      value={[sc.FOOTER_BACKGROUND_ALPHA]}
-                      min={0}
-                      max={255}
-                      onValueChange={(val) => updateScreenScheme(activeScreenId, { FOOTER_BACKGROUND_ALPHA: Array.isArray(val) ? val[0] : val })}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] text-white/50 w-6 text-right">{sc.FOOTER_BACKGROUND_ALPHA}</span>
-                  </div>
-                </div>
-
-                {/* Text alpha */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Text alpha</label>
-                  <div className="flex items-center gap-1.5">
-                    <Slider
-                      value={[sc.FOOTER_TEXT_ALPHA]}
-                      min={0}
-                      max={255}
-                      onValueChange={(val) => updateScreenScheme(activeScreenId, { FOOTER_TEXT_ALPHA: Array.isArray(val) ? val[0] : val })}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] text-white/50 w-6 text-right">{sc.FOOTER_TEXT_ALPHA}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* List */}
-              <p className="text-[9px] font-semibold text-white/20 uppercase tracking-wider mb-2 mt-4">List</p>
-              <div className="space-y-3">
-
-                {/* Focus bg color */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Focus bg</label>
-                  <Input
-                    type="color"
-                    value={`#${sc.LIST_FOCUS_BACKGROUND}`}
-                    onChange={(e) => updateScreenScheme(activeScreenId, { LIST_FOCUS_BACKGROUND: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
-                  />
-                </div>
-
-                {/* Focus bg alpha */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Focus bg α</label>
-                  <div className="flex items-center gap-1.5">
-                    <Slider
-                      value={[sc.LIST_FOCUS_BACKGROUND_ALPHA]}
-                      min={0}
-                      max={255}
-                      onValueChange={(val) => updateScreenScheme(activeScreenId, { LIST_FOCUS_BACKGROUND_ALPHA: Array.isArray(val) ? val[0] : val })}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] text-white/50 w-6 text-right">{sc.LIST_FOCUS_BACKGROUND_ALPHA}</span>
-                  </div>
-                </div>
-
-                {/* Default text */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Default text</label>
-                  <Input
-                    type="color"
-                    value={`#${sc.LIST_DEFAULT_TEXT}`}
-                    onChange={(e) => updateScreenScheme(activeScreenId, { LIST_DEFAULT_TEXT: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Default α</label>
-                  <div className="flex items-center gap-1.5">
-                    <Slider
-                      value={[sc.LIST_DEFAULT_TEXT_ALPHA]}
-                      min={0}
-                      max={255}
-                      onValueChange={(val) => updateScreenScheme(activeScreenId, { LIST_DEFAULT_TEXT_ALPHA: Array.isArray(val) ? val[0] : val })}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] text-white/50 w-6 text-right">{sc.LIST_DEFAULT_TEXT_ALPHA}</span>
-                  </div>
-                </div>
-
-                {/* Focus text */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Focus text</label>
-                  <Input
-                    type="color"
-                    value={`#${sc.LIST_FOCUS_TEXT}`}
-                    onChange={(e) => updateScreenScheme(activeScreenId, { LIST_FOCUS_TEXT: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Focus α</label>
-                  <div className="flex items-center gap-1.5">
-                    <Slider
-                      value={[sc.LIST_FOCUS_TEXT_ALPHA]}
-                      min={0}
-                      max={255}
-                      onValueChange={(val) => updateScreenScheme(activeScreenId, { LIST_FOCUS_TEXT_ALPHA: Array.isArray(val) ? val[0] : val })}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] text-white/50 w-6 text-right">{sc.LIST_FOCUS_TEXT_ALPHA}</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Overlay section */}
-            <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
-              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">Overlay (HUD)</p>
-              <div
-                onClick={() => overlayInputRef.current?.click()}
-                className="relative h-10 w-full rounded-md bg-[#1a1a1a] border border-dashed border-white/10 cursor-pointer hover:border-[#eab308]/30 transition-colors flex items-center justify-center gap-2 group"
-              >
-                {screen.overlay ? (
-                  <span className="text-[10px] text-green-400">overlay.png loaded</span>
-                ) : (
-                  <>
-                    <ImageIcon className="w-3.5 h-3.5 text-white/20 group-hover:text-white/40" />
-                    <span className="text-[10px] text-white/30 group-hover:text-white/50">Upload overlay.png</span>
-                  </>
-                )}
-              </div>
-              {screen.overlay && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setScreenOverlay(activeScreenId, null)}
-                className="mt-1 w-full text-[10px] text-red-400/60 hover:text-red-400 justify-center"
-              >
-                Remove overlay
-              </Button>
-              )}
-            </Card>
-            {/* Layers section */}
-            <Card className="!bg-transparent !border-0 !rounded-none !p-3">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Extra Layers</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => layerInputRef.current?.click()}
-                  className="text-[10px] text-white/30 hover:text-[#eab308]"
-                >
-                  <Layers className="w-3 h-3" /> Add
-                </Button>
-              </div>
-
-              <div className="space-y-1">
-                {screen.layers.map((layer) => (
-                  <div
-                    key={layer.id}
-                    onClick={() => setSelectedLayerId(layer.id)}
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
-                      selectedLayerId === layer.id
-                        ? "bg-[#eab308]/10 text-[#eab308]"
-                        : "hover:bg-white/5 text-white/50 hover:text-white/80"
-                    }`}
-                  >
-                    <span className="text-[10px] truncate w-32" title={layer.name}>{layer.name}</span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-mono text-white/20">{layer.x},{layer.y}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={(e) => { e.stopPropagation(); removeLayer(activeScreenId, layer.id); }}
-                          className="text-red-400/40 hover:text-red-400/80"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                    </div>
-                  </div>
+                    </AccordionContent>
+                  </AccordionItem>
                 ))}
-                {screen.layers.length === 0 && (
-                  <p className="text-[10px] text-white/20 text-center py-3">No layers. Click &quot;Add&quot; to upload images.</p>
-                )}
-              </div>
-            </Card>
-          </div>
-        </aside>
+              </Accordion>
+            </TabsContent>
 
+            <TabsContent value="assets" className="flex-1 overflow-y-auto m-0 outline-none p-4 space-y-6 custom-scrollbar">
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Wallpaper</p>
+                  {canvasBackground && <Button variant="ghost" size="icon" onClick={() => activeSubAsset ? setScreenSubAsset(activeScreenId, activeSubAsset, null) : setScreenWallpaper(activeScreenId, null)} className="h-6 w-6 text-red-400/50 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button>}
+                </div>
+                <div onClick={() => activeSubAsset ? subAssetInputRef.current?.click() : wallInputRef.current?.click()} className="aspect-video bg-white/5 rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-white/[0.08] hover:border-[#eab308]/30 transition-all group overflow-hidden">
+                   {canvasBackground ? <img src={canvasBackground} className="w-full h-full object-cover" alt="Wallpaper Preview" /> : <div className="flex flex-col items-center gap-2"><ImageIcon className="w-6 h-6 text-white/10 group-hover:text-white/30" /><span className="text-[10px] font-bold text-white/20 group-hover:text-white/40">Upload Source</span></div>}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                 <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Static Image Interface</p>
+                 <div onClick={() => staticImageInputRef.current?.click()} className="h-14 bg-white/5 rounded-xl border border-dashed border-white/10 flex items-center justify-center gap-3 cursor-pointer hover:bg-white/[0.08] transition-all group px-4">
+                    {screen.staticImage ? <div className="flex items-center gap-2 w-full"><div className="w-8 h-8 rounded bg-green-500/20 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-green-500" /></div><span className="text-[10px] font-bold text-green-500/80 uppercase truncate">Interface Image Loaded</span><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setScreenStaticImage(activeScreenId, null); }} className="ml-auto h-6 w-6 text-red-400/50 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button></div> : <><Upload className="w-4 h-4 text-white/10 group-hover:text-white/30" /><span className="text-[10px] font-bold text-white/20 group-hover:text-white/40 uppercase">Select static interface layer</span></>}
+                 </div>
+              </section>
+
+              <section className="space-y-3 flex-1">
+                 <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Extra Canvas Layers</p>
+                    <Button variant="ghost" size="icon" onClick={() => layerInputRef.current?.click()} className="h-6 w-6 bg-white/5 hover:bg-[#eab308]/10 hover:text-[#eab308]"><Plus className="w-4 h-4" /></Button>
+                 </div>
+                 <div className="space-y-2">
+                    {screen.layers.map(l => (
+                      <div key={l.id} onClick={() => setSelectedLayerId(l.id)} className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${selectedLayerId === l.id ? "bg-[#eab308]/10 border-[#eab308]/20 text-[#eab308]" : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white"}`}>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[10px] font-bold uppercase truncate">{l.name}</span>
+                          <span className="text-[9px] font-mono opacity-40">{l.width}x{l.height} at {l.x},{l.y}</span>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeLayer(activeScreenId, l.id); }} className="h-6 w-6 text-red-400/40 hover:text-red-400 hover:bg-red-400/10"><Trash2 className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    ))}
+                 </div>
+              </section>
+            </TabsContent>
+
+            <TabsContent value="glyphs" className="flex-1 overflow-y-auto m-0 outline-none p-4 space-y-4 custom-scrollbar">
+              <Accordion className="space-y-2">
+                <AccordionItem value="global" className="border-white/5 border rounded-lg bg-white/[0.02] overflow-hidden">
+                  <AccordionTrigger className="px-4 py-3 text-[10px] font-bold text-white/50 hover:no-underline hover:text-white uppercase tracking-widest">Global Assets</AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4 space-y-6">
+                    {(["header", "footer", "bar"] as const).map(cat => (
+                      <div key={cat} className="space-y-3">
+                        <div className="flex items-center gap-2 text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">{cat}</div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {GLOBAL_GLYPHS[cat].map(g => {
+                             const src = globalGlyphs[cat][g.name];
+                             return (
+                               <div key={g.name} onClick={() => { setActiveGlyph(g.name); setActiveGlyphCategory(cat); glyphInputRef.current?.click(); }} className={`aspect-square rounded-lg bg-black/40 border transition-all flex flex-col items-center justify-center cursor-pointer group p-1 ${activeGlyph === g.name && activeGlyphCategory === cat ? 'border-[#eab308] ring-1 ring-[#eab308]/20' : 'border-white/5 hover:border-white/20'}`}>
+                                  <div className="flex-1 flex items-center justify-center p-2">
+                                     {src ? <img src={src} className="max-w-full max-h-full object-contain" alt={g.label} /> : <div className="w-4 h-4 bg-white/5 rounded-sm group-hover:bg-white/10" />}
+                                  </div>
+                                  <span className="text-[8px] font-bold text-white/20 uppercase truncate w-full text-center group-hover:text-white/40">{g.label}</span>
+                               </div>
+                             );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+
+                {def?.glyphs && def.glyphs.length > 0 && (
+                  <AccordionItem value="screen" className="border-white/5 border rounded-lg bg-white/[0.02] overflow-hidden">
+                    <AccordionTrigger className="px-4 py-3 text-[10px] font-bold text-white/50 hover:no-underline hover:text-white uppercase tracking-widest">Screen Glyphs</AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <div className="grid grid-cols-3 gap-2">
+                        {def.glyphs.map(g => {
+                           const src = screen.glyphs.find(sg => sg.name === g.name)?.src;
+                           return (
+                             <div key={g.name} onClick={() => { setActiveGlyph(g.name); setActiveGlyphCategory("screen"); glyphInputRef.current?.click(); }} className={`aspect-square rounded-lg bg-black/40 border transition-all flex flex-col items-center justify-center cursor-pointer group p-1 ${activeGlyph === g.name && activeGlyphCategory === "screen" ? 'border-[#eab308] ring-1 ring-[#eab308]/20' : 'border-white/5 hover:border-white/20'}`}>
+                                <div className="flex-1 flex items-center justify-center p-2">
+                                   {src ? <img src={src} className="max-w-full max-h-full object-contain" alt={g.label} /> : <div className="w-4 h-4 bg-white/5 rounded-sm group-hover:bg-white/10" />}
+                                </div>
+                                <span className="text-[8px] font-bold text-white/20 uppercase truncate w-full text-center group-hover:text-white/40">{g.label}</span>
+                             </div>
+                           );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+              </Accordion>
+            </TabsContent>
+          </Tabs>
+        </aside>
       </div>
+
+       <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.1); }
+      `}</style>
     </div>
   );
 }

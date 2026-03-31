@@ -13,11 +13,18 @@ export interface MuosScreenDef {
   layout: "list" | "grid" | "splash" | "info";
   hasSubAssets: boolean;
   subAssets?: MuosSubAssetDef[];
+  glyphs?: MuosGlyphDef[];
 }
 
 export interface MuosSubAssetDef {
   name: string;   // filename sem extensão: "apps", "explore"
   label: string;  // label legível: "Applications", "Explore"
+}
+
+export interface MuosGlyphDef {
+  name: string;
+  label: string;
+  path: string;
 }
 
 export const MUOS_SCREENS: MuosScreenDef[] = [
@@ -47,6 +54,17 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
       { name: "reboot",     label: "Reboot" },
       { name: "shutdown",   label: "Shutdown" },
     ],
+    glyphs: [
+      { name: "apps", label: "Grid Icon: Apps", path: "muxlaunch/apps" },
+      { name: "collection", label: "Grid Icon: Collection", path: "muxlaunch/collection" },
+      { name: "config", label: "Grid Icon: Config", path: "muxlaunch/config" },
+      { name: "explore", label: "Grid Icon: Explore", path: "muxlaunch/explore" },
+      { name: "favourite", label: "Grid Icon: Favorite", path: "muxlaunch/favourite" },
+      { name: "history", label: "Grid Icon: History", path: "muxlaunch/history" },
+      { name: "info", label: "Grid Icon: Info", path: "muxlaunch/info" },
+      { name: "reboot", label: "Grid Icon: Reboot", path: "muxlaunch/reboot" },
+      { name: "shutdown", label: "Grid Icon: Shutdown", path: "muxlaunch/shutdown" },
+    ],
   },
   {
     id: "muxstart",
@@ -73,6 +91,12 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
     category: "media",
     layout: "list",
     hasSubAssets: false,
+    glyphs: [
+      { name: "folder", label: "List Icon: Folder", path: "muxplore/folder" },
+      { name: "rom", label: "List Icon: ROM", path: "muxplore/rom" },
+      { name: "history", label: "List Icon: History", path: "muxplore/history" },
+      { name: "collection", label: "List Icon: Collection", path: "muxplore/collection" },
+    ],
   },
   {
     id: "muxapp",
