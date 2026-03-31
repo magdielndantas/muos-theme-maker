@@ -24,83 +24,93 @@ export const exportTheme = async (themeName: string = "MyTheme") => {
   const state = useThemeStore.getState();
   const zip = new JSZip();
 
-  const base = `${themeName}/640x480`;
-  const wallDir  = `${base}/image/wall`;
-  const staticDir = `${base}/image/static`;
-  const glyphDir = `${base}/glyph`;
-  const schemeDir = `${base}/scheme`;
+  const resolutions = Object.keys(state.resolutions);
 
-  // 1. Global Overlay (image/overlay.png)
-  if (state.globalOverlay) {
-    const ext = mimeToExt(state.globalOverlay);
-    const b64 = dataUrlToBase64(state.globalOverlay);
-    zip.file(`${base}/image/overlay.${ext}`, b64, { base64: true });
+  for (const res of resolutions) {
+    const data = state.resolutions[res];
+    if (!data) continue;
+
+    const base = `${themeName}/${res}`;
+    const wallDir  = `${base}/image/wall`;
+    const staticDir = `${base}/image/static`;
+    const glyphDir = `${base}/glyph`;
+    const schemeDir = `${base}/scheme`;
+
+    // 1. Global Overlay (image/overlay.png)
+    if (data.globalOverlay) {
+      const ext = mimeToExt(data.globalOverlay);
+      const b64 = dataUrlToBase64(data.globalOverlay);
+      zip.file(`${base}/image/overlay.${ext}`, b64, { base64: true });
+    }
+
+    for (const screen of data.screens) {
+      // 2. Wallpapers (image/wall/[screenid].png)
+      if (screen.wallpaper) {
+        const ext = mimeToExt(screen.wallpaper);
+        const b64 = dataUrlToBase64(screen.wallpaper);
+        zip.file(`${wallDir}/${screen.id}.${ext}`, b64, { base64: true });
+      }
+
+      // 3. Static Images (image/static/[screenid].png)
+      if (screen.staticImage) {
+        const ext = mimeToExt(screen.staticImage);
+        const b64 = dataUrlToBase64(screen.staticImage);
+        zip.file(`${staticDir}/${screen.id}.${ext}`, b64, { base64: true });
+      }
+
+      // 4. Overlays (image/overlay_[screenid].png) per screen
+      if (screen.overlay) {
+        const ext = mimeToExt(screen.overlay);
+        const b64 = dataUrlToBase64(screen.overlay);
+        zip.file(`${base}/image/overlay_${screen.id}.${ext}`, b64, { base64: true });
+      }
+
+      // 5. Sub Assets (image/wall/[screenid]/[name].png)
+      for (const sa of screen.subAssets) {
+        if (!sa.src) continue;
+        const ext = mimeToExt(sa.src);
+        const b64 = dataUrlToBase64(sa.src);
+        zip.file(`${wallDir}/${screen.id}/${sa.name}.${ext}`, b64, { base64: true });
+      }
+
+      // 6. Glyphs (glyph/[screenid]/[name].png)
+      for (const gl of screen.glyphs) {
+        if (!gl.src) continue;
+        const ext = mimeToExt(gl.src);
+        const b64 = dataUrlToBase64(gl.src);
+        zip.file(`${glyphDir}/${screen.id}/${gl.name}.${ext}`, b64, { base64: true });
+      }
+
+      // 7. Screen specific INI ([screenid].ini)
+      if (Object.keys(screen.scheme).length > 0) {
+        const screenSchemeContent = buildIniContent(screen.scheme);
+        zip.file(`${schemeDir}/${screen.id}.ini`, screenSchemeContent);
+      }
+    }
+
+    // 8. Global Scheme (global.ini)
+    const globalSchemeContent = buildIniContent(data.globalScheme);
+    zip.file(`${schemeDir}/global.ini`, globalSchemeContent);
+    zip.file(`${schemeDir}/default.ini`, globalSchemeContent);
+
+    // 9. Global Glyphs (glyph/header, glyph/footer, glyph/bar)
+    for (const cat of ["header", "footer", "bar"] as const) {
+      const catGlyphs = data.globalGlyphs[cat];
+      for (const [name, src] of Object.entries(catGlyphs)) {
+        if (!src) continue;
+        const ext = mimeToExt(src as string);
+        const b64 = dataUrlToBase64(src as string);
+        zip.file(`${glyphDir}/${cat}/${name}.${ext}`, b64, { base64: true });
+      }
+    }
   }
 
-  for (const screen of state.screens) {
-    // 2. Wallpapers (image/wall/[screenid].png)
-    if (screen.wallpaper) {
-      const ext = mimeToExt(screen.wallpaper);
-      const b64 = dataUrlToBase64(screen.wallpaper);
-      zip.file(`${wallDir}/${screen.id}.${ext}`, b64, { base64: true });
-    }
-
-    // 3. Static Images (image/static/[screenid].png)
-    if (screen.staticImage) {
-      const ext = mimeToExt(screen.staticImage);
-      const b64 = dataUrlToBase64(screen.staticImage);
-      zip.file(`${staticDir}/${screen.id}.${ext}`, b64, { base64: true });
-    }
-
-    // 4. Overlays (image/overlay_[screenid].png) per screen (non-standard but supported visually)
-    if (screen.overlay) {
-      const ext = mimeToExt(screen.overlay);
-      const b64 = dataUrlToBase64(screen.overlay);
-      zip.file(`${base}/image/overlay_${screen.id}.${ext}`, b64, { base64: true });
-    }
-
-    // 5. Sub Assets (image/wall/[screenid]/[name].png)
-    for (const sa of screen.subAssets) {
-      if (!sa.src) continue;
-      const ext = mimeToExt(sa.src);
-      const b64 = dataUrlToBase64(sa.src);
-      zip.file(`${wallDir}/${screen.id}/${sa.name}.${ext}`, b64, { base64: true });
-    }
-
-    // 6. Glyphs (glyph/[screenid]/[name].png)
-    for (const gl of screen.glyphs) {
-      if (!gl.src) continue;
-      const ext = mimeToExt(gl.src);
-      const b64 = dataUrlToBase64(gl.src);
-      zip.file(`${glyphDir}/${screen.id}/${gl.name}.${ext}`, b64, { base64: true });
-    }
-
-    // 7. Screen specific INI ([screenid].ini)
-    const screenOverrides = Object.keys(screen.scheme).reduce((acc, key) => {
-      // @ts-expect-error Typescript object iteration constraint
-      acc[key as keyof ScreenScheme] = screen.scheme[key as keyof ScreenScheme];
-      return acc;
-    }, {} as Partial<ScreenScheme>);
-
-    if (Object.keys(screenOverrides).length > 0) {
-      const screenSchemeContent = buildIniContent(screenOverrides);
-      zip.file(`${schemeDir}/${screen.id}.ini`, screenSchemeContent);
-    }
-  }
-
-  // 8. Global Scheme (global.ini)
-  const globalSchemeContent = buildIniContent(state.globalScheme);
-  zip.file(`${schemeDir}/global.ini`, globalSchemeContent);
-  // Also create a copy as default.ini for fallback
-  zip.file(`${schemeDir}/default.ini`, globalSchemeContent);
-
-  // 9. Manifest (theme.json)
+  // 10. Manifest (theme.json) - includes all resolutions
   zip.file(`${themeName}/theme.json`, JSON.stringify({
     name: themeName,
-    resolution: "640x480",
-    screens: state.screens
-      .filter((s) => s.wallpaper || s.subAssets.some((sa) => sa.src) || s.staticImage || s.glyphs.some(g => g.src))
-      .map((s) => s.id),
+    resolutions,
+    active_resolution: state.resolution,
+    version: "2.0 (Multi-Res)"
   }, null, 2));
 
   const blob = await zip.generateAsync({ type: "blob" });

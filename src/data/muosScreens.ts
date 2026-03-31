@@ -9,8 +9,9 @@ export interface MuosScreenDef {
    * - grid   → grade de ícones (muxlaunch)
    * - splash → tela estacionária sem UI interativa (muxcharge, muxstart)
    * - info   → conteúdo informativo fixo sem lista (muxinfo, muxsysinfo, muxtester, muxshot)
+   * - keyboard → interface com teclado virtual (muxsearch)
    */
-  layout: "list" | "grid" | "splash" | "info";
+  layout: "list" | "grid" | "splash" | "info" | "keyboard";
   hasSubAssets: boolean;
   subAssets?: MuosSubAssetDef[];
   glyphs?: MuosGlyphDef[];
@@ -135,6 +136,30 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
     label: "Search",
     description: "Ferramenta de busca de conteúdo.",
     category: "media",
+    layout: "keyboard",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxcontrol",
+    label: "Advanced Control",
+    description: "Configurações de controle e mapeamento de inputs.",
+    category: "media",
+    layout: "list",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxcolfilter",
+    label: "Collection Filter",
+    description: "Filtros para organizar e visualizar coleções.",
+    category: "media",
+    layout: "list",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxtag",
+    label: "Tag Manager",
+    description: "Gerenciamento de tags para organização de ROMs.",
+    category: "media",
     layout: "list",
     hasSubAssets: false,
   },
@@ -162,6 +187,14 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
     layout: "info",
     hasSubAssets: false,
   },
+  {
+    id: "muxappcon",
+    label: "Application Config",
+    description: "Configurações individuais por aplicação.",
+    category: "media",
+    layout: "list",
+    hasSubAssets: false,
+  },
 
   // ── SETTINGS ──────────────────────────────────────────────────────────────
   {
@@ -184,6 +217,22 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
     id: "muxvisual",
     label: "Visual Settings",
     description: "Configurações visuais e de display.",
+    category: "settings",
+    layout: "list",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxcoladjust",
+    label: "Colour Adjustment",
+    description: "Ajuste de saturação, contraste e matiz do display.",
+    category: "settings",
+    layout: "list",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxoverlay",
+    label: "Retroarch Overlay",
+    description: "Gerenciamento de overlays globais para emuladores.",
     category: "settings",
     layout: "list",
     hasSubAssets: false,
@@ -221,7 +270,7 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
     hasSubAssets: false,
   },
   {
-    id: "muxlanguage",
+    id: "muxlang",
     label: "Language",
     description: "Configuração de idioma do sistema.",
     category: "settings",
@@ -231,7 +280,7 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
   {
     id: "muxcustom",
     label: "Custom Scripts",
-    description: "Scripts e extensões customizadas.",
+    description: "Scripts e extensões customizadas do sistema.",
     category: "settings",
     layout: "list",
     hasSubAssets: false,
@@ -276,6 +325,14 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
     layout: "list",
     hasSubAssets: false,
   },
+  {
+    id: "muxdanger",
+    label: "Danger Zone",
+    description: "Operações críticas e destrutivas de sistema.",
+    category: "settings",
+    layout: "list",
+    hasSubAssets: false,
+  },
 
   // ── NETWORK ───────────────────────────────────────────────────────────────
   {
@@ -304,10 +361,18 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
   },
   {
     id: "muxconnect",
-    label: "Connect",
-    description: "Interface de conexão a redes e serviços.",
+    label: "Connectivity",
+    description: "Interface para conexão a serviços (SSH, SAMBA, SFTP).",
     category: "network",
-    layout: "info",
+    layout: "list",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxnetadv",
+    label: "Advanced Network",
+    description: "Configurações avançadas (IP estático, DNS, etc).",
+    category: "network",
+    layout: "list",
     hasSubAssets: false,
   },
   {
@@ -324,6 +389,54 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
     id: "muxinfo",
     label: "Information",
     description: "Informações sobre jogos e ROMs.",
+    category: "system",
+    layout: "info",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxactivity",
+    label: "Activity Tracker",
+    description: "Monitoramento de tempo de jogo e estatísticas.",
+    category: "system",
+    layout: "list",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxactivity-content",
+    label: "Activity: Content",
+    description: "Estatísticas detalhadas por jogo.",
+    category: "system",
+    layout: "info",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxactivity-overview",
+    label: "Activity: Overview",
+    description: "Visão geral do uso do sistema.",
+    category: "system",
+    layout: "info",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxactivity-style",
+    label: "Activity: Style",
+    description: "Customização visual dos gráficos de atividade.",
+    category: "system",
+    layout: "list",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxdevice",
+    label: "Device Status",
+    description: "Saúde e estados do hardware.",
+    category: "system",
+    layout: "info",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxnetinfo",
+    label: "Network Info",
+    description: "Detalhes técnicos da conexão de rede ativa.",
     category: "system",
     layout: "info",
     hasSubAssets: false,
@@ -363,7 +476,23 @@ export const MUOS_SCREENS: MuosScreenDef[] = [
   {
     id: "muxpower",
     label: "Power Settings",
-    description: "Gerenciamento de energia e bateria.",
+    description: "Gerenciamento de suspensão, brilho e bateria.",
+    category: "system",
+    layout: "list",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxbackup",
+    label: "Backup Manager",
+    description: "Criação e restauração de backups do sistema muOS.",
+    category: "system",
+    layout: "list",
+    hasSubAssets: false,
+  },
+  {
+    id: "muxkiosk",
+    label: "Kiosk Mode",
+    description: "Trava se seções do sistema para uso limitado.",
     category: "system",
     layout: "list",
     hasSubAssets: false,

@@ -124,9 +124,25 @@ O arquivo `.muxthm` é um ZIP cujo **conteúdo** (não a pasta raiz) deve seguir
 Os arquivos `.ini` de scheme são carregados de forma aditiva, em cascata. Cada arquivo subsequente **sobrescreve** as configurações do anterior:
 
 ```
-1. /scheme/global.ini              (base global)
-2. /{Resolucao}/scheme/default.ini (base por resolução)
-3. /{Resolucao}/scheme/{modulo}.ini (específico por tela/módulo)
+1. `/scheme/global.ini`              (Base global)
+2. `/{Resolucao}/scheme/default.ini` (Base por resolução)
+3. `/{Resolucao}/scheme/{modulo}.ini` (Específico por tela/módulo, ex: `muxapp.ini`)
+
+---
+
+## Estrutura de Pastas e Ativos
+
+### 1. Resoluções e Imagens
+Cada resolução (ex: `640x480`, `720x720`) possui sua própria pasta `image/`:
+- `image/wall/`: Wallpapers por tela (ex: `muxlaunch.png`).
+- `image/static/`: Imagens estáticas sobrepostas.
+
+### 2. Glifos (Ícones)
+- **Globais**: `/glyph/header/`, `/glyph/footer/`, `/glyph/bar/`.
+- **Por Tela**: `/{Resolucao}/glyph/{screenId}/`.
+
+### 3. Alternativas (.muxalt)
+Alguns temas (como `Aurora`) usam a pasta `alternate/` para variações completas. O Studio foca na estrutura base, mas reconhece esses arquivos em importações profundas.
 ```
 
 **Exemplo:** para customizar apenas a tela de exploração de conteúdo em 640x480, crie `640x480/scheme/muxplore.ini` com apenas as propriedades que diferem do `default.ini`.
@@ -410,3 +426,110 @@ npm run dev -- -H 0.0.0.0
 | `src/data/muosScreens.ts` | Definição de todas as telas, layouts e sub-assets |
 | `src/store/themeStore.ts` | Estado global (Zustand) com assets por tela |
 | `src/app/page.tsx` | UI principal: canvas, inspector, sidebar de telas |
+# muOS Theme Studio: Documentação Técnica de Temas
+
+Este documento serve como a referência oficial para o desenvolvimento de temas compatíveis com o **muOS (MustardOS)**, consolidando as diretrizes das 8 páginas da documentação oficial.
+
+---
+
+## 📂 Estrutura de Diretórios e Arquivos
+
+Um tema muOS (`.muxthm`) é um arquivo ZIP contendo as resoluções suportadas. **O ZIP deve conter as pastas diretamente na raiz, sem subdiretórios extras.**
+
+```text
+meu-tema.muxthm (ZIP)
+├── 640x480/          # Resolução padrão
+│   ├── font/         # Fontes customizadas (.bin ou .ttf)
+│   ├── scheme/       # Configuração (.ini)
+│   ├── static/       # Ícones de sistema
+│   ├── wall/         # Papéis de parede
+│   └── bootlogo.bmp  # Logo de inicialização (320x240)
+├── 320x240/          # Outras resoluções suportadas
+├── muxalt/           # Alternativas (.muxalt)
+├── assets.muxzip     # Ativos do Content Explorer
+└── active.txt        # Define o tema ativo por padrão
+```
+
+### 📏 Resoluções Suportadas
+O muOS suporta as seguintes pastas de resolução:
+- `320x240` (Anbernic RG35XX Original/Plus/H)
+- `480x272` (TrimUI Smart Pro)
+- `480x320` (Anbernic RG351P/M)
+- `640x480` (A maioria dos dispositivos 4:3)
+- `720x720` (Anbernic RG-Cube / Powkiddy RGB30)
+- `854x480` (Anbernic RG505)
+- `1280x720` (Anbernic RG552 / Retroid Pocket)
+
+---
+
+## 🎨 Imagens e Identidade Visual
+
+### 🖼️ Especificações Técnicas
+| Tipo | Arquivo | Resolução | Formato | Notas |
+|------|---------|-----------|---------|-------|
+| **Boot Logo** | `bootlogo.bmp` | 320x240 | BMP 24-bit | Localizado dentro da pasta de resolução |
+| **Wallpaper** | `wall/` | Nativa | PNG/JPG | Recomendado PNG para qualidade |
+| **Overlay** | `overlay.png` | Nativa | PNG32 | Suporta transparência total |
+| **Ícones** | `static/` | Variável | PNG | Localizado na pasta `static/` |
+
+---
+
+## 📝 Configuração do Esquema (.ini)
+
+Os arquivos `.ini` controlam cores, alinhamentos e comportamentos. O muOS usa um sistema de cascata: `muxlaunch.ini` (Menu) sobrescreve `default.ini`.
+
+### 📋 Principais Seções e Chaves
+O Studio suporta as seguintes seções oficiais:
+
+1.  **`[background]`**: Papel de parede e opacidade.
+2.  **`[font]`**: Definição de cores e famílias de fontes.
+3.  **`[header]` / `[footer]`**: Altura, cores e alinhamento de texto/ícones.
+4.  **`[list]` / `[image_list]`**: Estilo de lista vertical ou horizontal.
+5.  **`[grid]`**: Transforma a lista em grade de ícones (Use `ROW_COUNT` e `COLUMN_COUNT` > 0).
+6.  **`[status]`**: Elementos da barra de status (Bateria, Wi-Fi, BT).
+7.  **`[battery]` / `[network]` / `[bluetooth]`**: Cores para estados Ativo/Baixo/Normal.
+8.  **`[date]`**: Formatação e cores do relógio.
+9.  **`[help]`**: Cores e alinhamento do rodapé de ajuda.
+10. **`[navigation]`**: Textos e glifos dos botões (A, B, X, Y).
+11. **`[charging]`**: Visual da bateria durante a carga.
+12. **`[notification]`**: Alertas e mensagens flutuantes.
+13. **`[bar]`**: Barras de progresso e volume.
+14. **`[terminal]`**: Cores do log de boot.
+
+> [!TIP]
+> Use prefixos `0x` para cores em hexadecimal (ex: `0xFFFFFF`).
+
+---
+
+## 🔠 Fontes Customizadas
+
+O muOS aceita dois formatos principais:
+1.  **Fontes Pré-renderizadas (.bin)**: Mais leves, geradas pelo muOS Font Tool.
+2.  **TrueType (.ttf)**: Mais dinâmicas, mas podem impactar levemente a performance.
+
+As fontes podem ser divididas em subpastas:
+- `header/`: Títulos no topo.
+- `footer/`: Textos no rodapé.
+- `list/`: Itens da lista principal.
+
+---
+
+## 🔄 Alternativas e Ativos
+
+### 🎭 Sistema .muxalt
+Arquivos `.muxalt` são ZIPs (v2) que contêm arquivos `.ini` e imagens alternativas. Permitem que um único tema tenha variações (ex: "Dark Mode", "Light Mode") sem duplicar todo o pacote.
+
+### 📦 Ativos (.muxzip)
+O arquivo `assets.muxzip` na raiz do tema fornece ícones específicos para pastas do Content Explorer e seções de catálogo (ex: ícones de consoles na grade).
+
+---
+
+## 🏁 Finalização e Empacotamento
+
+1.  Certifique-se de que a estrutura de pastas está correta na raiz do ZIP.
+2.  Adicione o arquivo `active.txt` informando qual resolução/pasta deve ser carregada por padrão (geralmente `640x480`).
+3.  Comprima os arquivos usando o método "Deflate" normal.
+4.  Renomeie a extensão de `.zip` para `.muxthm`.
+
+---
+*Referência baseada na documentação oficial: [muOS Dev Themes](https://muos.dev/themes)*

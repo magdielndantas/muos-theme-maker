@@ -37,8 +37,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { SCHEME_GROUPS } from "@/data/schemeGroups";
 import { GLOBAL_GLYPHS } from "@/data/muosGlyphs";
 
-const CANVAS_W = 640;
-const CANVAS_H = 480;
+// Dimensions will be dynamic based on resolution
 
 function SettingsIcon({ className }: { className?: string }) {
   return (
@@ -64,21 +63,34 @@ async function getImageDimensions(src: string): Promise<{ w: number; h: number }
   });
 }
 
+function getAlignStyles(align: number, padL: number, padR: number) {
+  switch (align) {
+    case 1: return { left: padL, right: "auto", justifyContent: "flex-start" };
+    case 2: return { left: 0, right: 0, justifyContent: "center" };
+    case 3: return { left: "auto", right: padR, justifyContent: "flex-end" };
+    default: return { left: padL, right: "auto", justifyContent: "flex-start" };
+  }
+}
+
 const GLOBAL_ID = "__global__";
 
 export default function ThemeMakerStudio() {
   const store = useThemeStore();
   const {
-    screens, activeScreenId, selectedLayerId, themeName,
-    globalScheme, globalGlyphs,
+    activeScreenId, selectedLayerId, themeName,
     getActiveScreen, getEffectiveScheme, 
     setThemeName, setActiveScreenId,
     setGlobalScheme, setGlobalGlyph,
     setScreenWallpaper, setScreenOverlay, setScreenSubAsset,
     setScreenStaticImage, setScreenGlyph,
     addLayer, updateLayer, removeLayer, setSelectedLayerId,
-    updateScreenScheme,
+    updateScreenScheme, resolution, setResolution, cloneResolution,
   } = store;
+
+  const resolutionData = store.resolutions[resolution] || store.resolutions["640x480"];
+  const { screens, globalScheme, globalGlyphs } = resolutionData;
+
+  const [canvasW, canvasH] = resolution.split("x").map(Number);
 
   const isGlobalMode = activeScreenId === GLOBAL_ID;
   const screen = getActiveScreen();
@@ -125,6 +137,7 @@ export default function ThemeMakerStudio() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedLayerId, removeLayer, activeScreenId]);
 
+  // Handlers
   const handleWallUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -164,21 +177,19 @@ export default function ThemeMakerStudio() {
     return !!(s.wallpaper || s.subAssets.some((sa) => sa.src) || s.layers.length);
   };
 
-  const getAlignStyles = (align: number | string, padL: number | string, padR: number | string) => {
-    const a = Number(align);
-    const pL = Number(padL);
-    const pR = Number(padR);
-    if (a === 1) return { left: pL, justifyContent: "flex-start" };
-    if (a === 2) return { left: 0, right: 0, justifyContent: "center" };
-    if (a === 3) return { right: pR, justifyContent: "flex-end" };
-    return {};
+  // Helper for alignment logic reused across header/footer
+  const alignBoxStyles = (align: number | string, padL: number | string, padR: number | string) => {
+    return getAlignStyles(Number(align), Number(padL), Number(padR));
   };
 
   // Mock Content Renderer for Screen Glyphs
   const renderMockContent = () => {
     const getGlyphSrc = (name: string) => screen.glyphs.find(g => g.name === name)?.src;
 
-    if (activeScreenId === "muxlaunch") {
+    const screenDef = MUOS_SCREENS.find(s => s.id === activeScreenId);
+    if (!screenDef) return null;
+
+    if (screenDef.id === "muxlaunch" && sc.GRID_ACTIVE === 1) {
       const items = [
         { id: "apps", label: "Applications" },
         { id: "collection", label: "Collections" },
@@ -201,26 +212,134 @@ export default function ThemeMakerStudio() {
       );
     }
 
-    if (activeScreenId === "muxplore") {
-      const files = [
-        { name: "Super Mario World", type: "rom" },
-        { name: "Nintendo 64", type: "folder" },
-        { name: "Castlevania", type: "rom" },
-        { name: "Sega Genesis", type: "folder" },
+    if (screenDef.layout === "keyboard") {
+      const rows = [
+        "QWERTYUIOP",
+        "ASDFGHJKL",
+        "ZXCVBNM"
       ];
       return (
-        <div className="space-y-1 p-8 pt-20">
-          {files.map((f, i) => (
-            <div key={i} className={`flex items-center gap-4 p-3 rounded-lg border ${i === 0 ? "bg-[#eab308]/20 border-[#eab308]/30" : "bg-black/20 border-white/5"}`}>
-              <div className="w-6 h-6 flex items-center justify-center">
-                {getGlyphSrc(f.type) ? <img src={getGlyphSrc(f.type)!} className="w-full h-full object-contain" /> : (f.type === 'folder' ? <Folder className="w-4 h-4 text-white/20" /> : <FileText className="w-4 h-4 text-white/20" />)}
+        <div className="p-8 pt-20 flex flex-col gap-2">
+          <div className="bg-black/40 p-3 rounded border border-white/10 mb-4 h-10 flex items-center">
+            <span className="text-white/20 text-xs italic">Search...</span>
+          </div>
+          {rows.map((row, i) => (
+            <div key={i} className="flex justify-center gap-1">
+              {row.split("").map(char => (
+                <div key={char} className="w-8 h-10 bg-white/5 rounded border border-white/10 flex items-center justify-center text-xs font-bold text-white/60">
+                  {char}
+                </div>
+              ))}
+            </div>
+          ))}
+          <div className="flex justify-center gap-1 mt-1">
+            <div className="w-12 h-10 bg-[#eab308]/20 rounded border border-[#eab308]/30 flex items-center justify-center text-[10px] font-bold text-[#eab308]">SHIFT</div>
+            <div className="w-32 h-10 bg-white/5 rounded border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/30">SPACE</div>
+            <div className="w-12 h-10 bg-white/10 rounded border border-white/20 flex items-center justify-center text-[10px] font-bold text-white/60">DEL</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (screenDef.layout === "info") {
+      return (
+        <div className="p-8 pt-24 space-y-4">
+          <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
+            <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center">
+              <Cpu className="w-6 h-6 text-[#eab308]" />
+            </div>
+            <div>
+              <h4 className="text-[10px] text-white/30 uppercase tracking-tighter">System Hardware</h4>
+              <p className="text-xs font-bold text-white/80">ARM Cortex-A53 @ 1.5GHz</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+              <h4 className="text-[10px] text-white/30 uppercase tracking-tighter">OS Version</h4>
+              <p className="text-xs font-bold text-white/80">v24.10.1</p>
+            </div>
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+              <h4 className="text-[10px] text-white/30 uppercase tracking-tighter">Storage</h4>
+              <p className="text-xs font-bold text-white/80">14.2GB / 64GB</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (screenDef.id === "muxcoladjust") {
+      const sliders = [
+        { label: "Saturation", val: 80 },
+        { label: "Luminance", val: 50 },
+        { label: "Contrast", val: 65 },
+        { label: "Hue", val: 0 },
+      ];
+      return (
+        <div className="p-8 pt-24 space-y-6">
+          {sliders.map((s, i) => (
+            <div key={i} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-bold text-white/60 uppercase">{s.label}</span>
+                <span className="text-xs font-bold text-[#eab308]">{s.val}</span>
               </div>
-              <span className={`text-xs font-bold ${i === 0 ? "text-[#eab308]" : "text-white/60"}`}>{f.name}</span>
+              <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div className="h-full bg-[#eab308] rounded-full" style={{ width: `${s.val}%` }} />
+              </div>
             </div>
           ))}
         </div>
       );
     }
+
+    // Default List Layout (shared by muxplore, muxconfig, etc)
+    const getMockItems = () => {
+      if (screenDef.id === "muxplore") return [
+        { label: "Super Mario World", id: "rom" },
+        { label: "Nintendo 64", id: "folder" },
+        { label: "Castlevania", id: "rom" },
+        { label: "Sega Genesis", id: "folder" },
+      ];
+      if (screenDef.id === "muxconnect") return [
+        { label: "SSH Service", id: "ssh", status: "ON" },
+        { label: "Samba Share", id: "samba", status: "OFF" },
+        { label: "SFTP Server", id: "sftp", status: "ON" },
+        { label: "Web Terminal", id: "web", status: "OFF" },
+      ];
+      if (screenDef.category === "network") return [
+        { label: "Wi-Fi Settings", id: "wifi" },
+        { label: "Available Networks", id: "scan" },
+        { label: "Network Profiles", id: "profile" },
+        { label: "Static IP Config", id: "netadv" },
+      ];
+      return [
+        { label: "General Settings", id: "config" },
+        { label: "Display Options", id: "visual" },
+        { label: "Controller Input", id: "control" },
+        { label: "Advanced Tweaks", id: "tweak" },
+      ];
+    };
+
+    const mockItems = getMockItems();
+
+    return (
+      <div className="space-y-1 p-8 pt-20">
+        {mockItems.map((item: any, i) => (
+          <div key={i} className={`flex items-center justify-between p-3 rounded-lg border ${i === 0 ? "bg-[#eab308]/20 border-[#eab308]/30" : "bg-black/20 border-white/5"}`}>
+            <div className="flex items-center gap-4">
+              <div className="w-6 h-6 flex items-center justify-center">
+                {getGlyphSrc(item.id) ? <img src={getGlyphSrc(item.id)!} className="w-full h-full object-contain" /> : <Gamepad2 className="w-4 h-4 text-white/20" />}
+              </div>
+              <span className={`text-xs font-bold ${i === 0 ? "text-[#eab308]" : "text-white/60"}`}>{item.label}</span>
+            </div>
+            {item.status && (
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${item.status === 'ON' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                {item.status}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
     
     return null;
   };
@@ -273,6 +392,32 @@ export default function ThemeMakerStudio() {
             value={themeName}
             onChange={(e) => setThemeName(e.target.value)}
           />
+
+          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-md px-2.5 h-8">
+            <Monitor className="w-3.5 h-3.5 text-white/20" />
+            <select 
+              value={resolution} 
+              onChange={(e) => setResolution(e.target.value)}
+              className="bg-transparent text-[11px] font-medium text-white/50 outline-none cursor-pointer hover:text-white transition-colors"
+            >
+              {["640x480", "720x480", "720x576", "720x720", "1024x720"].map(res => (
+                <option key={res} value={res} className="bg-[#0f0f0f] text-white/80">{res}</option>
+              ))}
+            </select>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {
+                if (resolution !== "640x480") {
+                  cloneResolution("640x480", resolution);
+                }
+              }}
+              className="h-6 px-1.5 text-[9px] font-bold text-[#eab308]/40 hover:text-[#eab308] hover:bg-[#eab308]/5"
+              title="Clone contents from 640x480 to current"
+            >
+              CLONE BASE
+            </Button>
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => importInputRef.current?.click()} className="text-white/40 hover:text-white hover:bg-white/5 text-[11px] h-8 px-3">
               <Upload className="w-3.5 h-3.5 mr-2" />
@@ -371,8 +516,8 @@ export default function ThemeMakerStudio() {
             <div
               className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out"
               style={{
-                width: CANVAS_W,
-                height: CANVAS_H,
+                width: canvasW,
+                height: canvasH,
                 transform: `scale(${canvasZoom})`,
                 backgroundColor: `#${sc.BACKGROUND}`,
                 imageRendering: "pixelated"
@@ -381,7 +526,7 @@ export default function ThemeMakerStudio() {
             >
               {canvasBackground && <img src={canvasBackground} alt="wallpaper" className="absolute inset-0 w-full h-full object-cover pointer-events-none" draggable={false} />}
               {screen.overlay && <img src={screen.overlay} alt="overlay" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10" draggable={false} />}
-              {screen.staticImage && <img src={screen.staticImage} alt="static" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[8]" draggable={false} />}
+              {screen.staticImage && <img src={screen.staticImage} alt="static" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[8]" draggable={false} />}
 
               {/* muOS Header */}
               <div 
@@ -410,29 +555,36 @@ export default function ThemeMakerStudio() {
 
                 {/* Clock alignment */}
                 <div 
-                  className="absolute inset-y-0 flex items-center"
-                  style={{ 
-                    ...getAlignStyles(sc.DATETIME_ALIGN, sc.DATETIME_PADDING_LEFT, sc.DATETIME_PADDING_RIGHT),
-                    color: `#${sc.DATETIME_TEXT}`,
-                    opacity: sc.DATETIME_ALPHA / 255
-                  }}
+                   className="absolute inset-y-0 flex items-center"
+                   style={{ 
+                     ...getAlignStyles(Number(sc.DATETIME_ALIGN), Number(sc.DATETIME_PADDING_LEFT), Number(sc.DATETIME_PADDING_RIGHT)),
+                     color: `#${sc.DATETIME_TEXT}`,
+                     opacity: sc.DATETIME_ALPHA / 255
+                   }}
                 >
-                  <span className="text-[11px] font-mono font-bold tracking-widest leading-none">12:34</span>
+                   <span className="text-[11px] font-mono font-bold tracking-widest leading-none">12:34</span>
                 </div>
 
                 {/* Status (Wifi/Battery) alignment */}
                 <div 
-                   className="absolute inset-y-0 flex items-center gap-3"
+                   className="absolute inset-y-0 flex items-center gap-3 px-2"
                    style={{ 
                      ...getAlignStyles(sc.STATUS_ALIGN, sc.STATUS_PADDING_LEFT, sc.STATUS_PADDING_RIGHT)
                    }}
                 >
-                   <div className="w-4 h-4 flex items-center justify-center">
-                     {globalGlyphs.header["network_normal"] ? <img src={globalGlyphs.header["network_normal"]!} className="w-full h-full object-contain" alt="wifi icon" /> : <Wifi className="w-3.5 h-3.5 text-white/50" />}
-                   </div>
-                   <div className="w-6 h-3 rounded-[1px] border border-white/20 relative" style={{ borderColor: `#${sc.BATTERY_NORMAL}`, opacity: sc.BATTERY_NORMAL_ALPHA / 255 }}>
-                     <div className="absolute left-[1px] top-[1px] bottom-[1px] bg-white/60" style={{ width: "60%", backgroundColor: `#${sc.BATTERY_NORMAL}` }} />
-                   </div>
+                   {globalGlyphs.header["network_normal"] ? (
+                     <img src={globalGlyphs.header["network_normal"]!} className="h-4 object-contain" alt="wifi" />
+                   ) : (
+                     <Wifi className="w-3.5 h-3.5 text-white/30" />
+                   )}
+                   
+                   {globalGlyphs.header["capacity_100"] ? (
+                     <img src={globalGlyphs.header["capacity_100"]!} className="h-4 object-contain" alt="battery" />
+                   ) : (
+                     <div className="w-6 h-3 rounded-[1px] border border-white/20 relative" style={{ borderColor: `#${sc.BATTERY_NORMAL}`, opacity: sc.BATTERY_NORMAL_ALPHA / 255 }}>
+                       <div className="absolute left-[1px] top-[1px] bottom-[1px] bg-white/60" style={{ width: "65%", backgroundColor: `#${sc.BATTERY_NORMAL}` }} />
+                     </div>
+                   )}
                 </div>
               </div>
 
@@ -468,12 +620,20 @@ export default function ThemeMakerStudio() {
               >
                  <div className="flex items-center justify-between h-full px-4" style={{ color: `#${sc.FOOTER_TEXT}`, opacity: sc.FOOTER_TEXT_ALPHA / 255 }}>
                     <div className="flex items-center gap-2">
-                       <span className="text-[9px] font-bold bg-[#dc2626] text-white w-4 h-4 rounded-full flex items-center justify-center">B</span>
+                       {globalGlyphs.footer["cancel"] ? (
+                         <img src={globalGlyphs.footer["cancel"]!} className="h-4 object-contain" alt="back" />
+                       ) : (
+                         <span className="text-[9px] font-bold bg-[#dc2626] text-white w-4 h-4 rounded-full flex items-center justify-center shadow-sm border border-white/10">B</span>
+                       )}
                        <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
                     </div>
                     <div className="flex items-center gap-2">
                        <span className="text-[10px] font-bold uppercase tracking-wider">Select</span>
-                       <span className="text-[9px] font-bold bg-[#16a34a] text-white w-4 h-4 rounded-full flex items-center justify-center">A</span>
+                       {globalGlyphs.footer["confirm"] ? (
+                         <img src={globalGlyphs.footer["confirm"]!} className="h-4 object-contain" alt="select" />
+                       ) : (
+                         <span className="text-[9px] font-bold bg-[#16a34a] text-white w-4 h-4 rounded-full flex items-center justify-center shadow-sm border border-white/10">A</span>
+                       )}
                     </div>
                  </div>
               </div>
@@ -498,8 +658,21 @@ export default function ThemeMakerStudio() {
                     <AccordionContent className="px-4 pb-4 space-y-4">
                       {group.fields.map((field) => (
                         <div key={field.key} className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <Label className="text-[10px] font-bold text-white/30 uppercase tracking-wider">{field.label}</Label>
+                          <div className="flex justify-between items-center group/item">
+                            <div className="flex items-center gap-2">
+                              <Label className="text-[10px] font-bold text-white/30 uppercase tracking-wider">{field.label}</Label>
+                              {!isGlobalMode && screen.scheme[field.key] !== undefined && screen.scheme[field.key] !== globalScheme[field.key] && (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-1 h-1 rounded-full bg-[#eab308]" title="Overridden" />
+                                  <button 
+                                    onClick={() => handleSchemeChange({ [field.key]: undefined })}
+                                    className="hidden group-hover/item:block text-[8px] text-white/20 hover:text-white/60 transition-colors"
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                             <span className="text-[10px] font-mono text-white/40">{sc[field.key]}</span>
                           </div>
                           {field.type === 'color' ? (
@@ -521,19 +694,66 @@ export default function ThemeMakerStudio() {
             <TabsContent value="assets" className="flex-1 overflow-y-auto m-0 outline-none p-4 space-y-6 custom-scrollbar">
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Wallpaper</p>
-                  {canvasBackground && <Button variant="ghost" size="icon" onClick={() => activeSubAsset ? setScreenSubAsset(activeScreenId, activeSubAsset, null) : setScreenWallpaper(activeScreenId, null)} className="h-6 w-6 text-red-400/50 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button>}
+                  <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Wallpaper {activeSubAsset ? `(${activeSubAsset})` : ""}</p>
+                  {(activeSubAsset ? screen.subAssets.find(sa => sa.name === activeSubAsset)?.src : screen.wallpaper) && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => activeSubAsset ? setScreenSubAsset(activeScreenId, activeSubAsset, null) : setScreenWallpaper(activeScreenId, null)}
+                      className="h-6 w-6 text-red-400/50 hover:text-red-400"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                 </div>
-                <div onClick={() => activeSubAsset ? subAssetInputRef.current?.click() : wallInputRef.current?.click()} className="aspect-video bg-white/5 rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-white/[0.08] hover:border-[#eab308]/30 transition-all group overflow-hidden">
-                   {canvasBackground ? <img src={canvasBackground} className="w-full h-full object-cover" alt="Wallpaper Preview" /> : <div className="flex flex-col items-center gap-2"><ImageIcon className="w-6 h-6 text-white/10 group-hover:text-white/30" /><span className="text-[10px] font-bold text-white/20 group-hover:text-white/40">Upload Source</span></div>}
+                <div
+                  onClick={() => activeSubAsset ? subAssetInputRef.current?.click() : wallInputRef.current?.click()}
+                  className="aspect-video bg-white/5 rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-white/[0.08] hover:border-[#eab308]/30 transition-all group overflow-hidden"
+                >
+                  {(activeSubAsset ? screen.subAssets.find(sa => sa.name === activeSubAsset)?.src : screen.wallpaper) ? (
+                    <img src={(activeSubAsset ? screen.subAssets.find(sa => sa.name === activeSubAsset)?.src : screen.wallpaper) || ""} className="w-full h-full object-cover" alt="Preview" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <ImageIcon className="w-6 h-6 text-white/10 group-hover:text-white/30" />
+                      <span className="text-[10px] font-bold text-white/20 group-hover:text-white/40">Upload {activeSubAsset || "Wallpaper"}</span>
+                    </div>
+                  )}
                 </div>
               </section>
 
+              {def?.hasSubAssets && def.subAssets && (
+                <section className="space-y-3">
+                  <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Menu Items / Sub-Assets</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveSubAsset(null)}
+                      className={`h-9 justify-start px-3 text-[10px] uppercase font-bold tracking-wider ${!activeSubAsset ? "bg-[#eab308]/10 text-[#eab308] border border-[#eab308]/20" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+                    >
+                      Base Wall
+                    </Button>
+                    {def.subAssets.map(sub => (
+                      <Button
+                        key={sub.name}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setActiveSubAsset(sub.name)}
+                        className={`h-9 justify-between px-3 text-[10px] uppercase font-bold tracking-wider ${activeSubAsset === sub.name ? "bg-[#eab308]/10 text-[#eab308] border border-[#eab308]/20" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+                      >
+                        <span className="truncate">{sub.label}</span>
+                        {screen.subAssets.find(sa => sa.name === sub.name)?.src && <div className="w-1.5 h-1.5 rounded-full bg-green-500/60" />}
+                      </Button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               <section className="space-y-3">
-                 <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Static Image Interface</p>
-                 <div onClick={() => staticImageInputRef.current?.click()} className="h-14 bg-white/5 rounded-xl border border-dashed border-white/10 flex items-center justify-center gap-3 cursor-pointer hover:bg-white/[0.08] transition-all group px-4">
-                    {screen.staticImage ? <div className="flex items-center gap-2 w-full"><div className="w-8 h-8 rounded bg-green-500/20 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-green-500" /></div><span className="text-[10px] font-bold text-green-500/80 uppercase truncate">Interface Image Loaded</span><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setScreenStaticImage(activeScreenId, null); }} className="ml-auto h-6 w-6 text-red-400/50 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button></div> : <><Upload className="w-4 h-4 text-white/10 group-hover:text-white/30" /><span className="text-[10px] font-bold text-white/20 group-hover:text-white/40 uppercase">Select static interface layer</span></>}
-                 </div>
+                  <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Static Image Interface</p>
+                  <div onClick={() => staticImageInputRef.current?.click()} className="h-14 bg-white/5 rounded-xl border border-dashed border-white/10 flex items-center justify-center gap-3 cursor-pointer hover:bg-white/[0.08] transition-all group px-4">
+                     {screen.staticImage ? <div className="flex items-center gap-2 w-full"><div className="w-8 h-8 rounded bg-green-500/20 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-green-500" /></div><span className="text-[10px] font-bold text-green-500/80 uppercase truncate">Interface Image Loaded</span><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setScreenStaticImage(activeScreenId, null); }} className="ml-auto h-6 w-6 text-red-400/50 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></Button></div> : <><Upload className="w-4 h-4 text-white/10 group-hover:text-white/30" /><span className="text-[10px] font-bold text-white/20 group-hover:text-white/40 uppercase">Select static interface layer</span></>}
+                  </div>
               </section>
 
               <section className="space-y-3 flex-1">
@@ -565,7 +785,7 @@ export default function ThemeMakerStudio() {
                         <div className="flex items-center gap-2 text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">{cat}</div>
                         <div className="grid grid-cols-3 gap-2">
                           {GLOBAL_GLYPHS[cat].map(g => {
-                             const src = globalGlyphs[cat][g.name];
+                             const src = globalGlyphs[cat][g.name as keyof typeof globalGlyphs[typeof cat]];
                              return (
                                <div key={g.name} onClick={() => { setActiveGlyph(g.name); setActiveGlyphCategory(cat); glyphInputRef.current?.click(); }} className={`aspect-square rounded-lg bg-black/40 border transition-all flex flex-col items-center justify-center cursor-pointer group p-1 ${activeGlyph === g.name && activeGlyphCategory === cat ? 'border-[#eab308] ring-1 ring-[#eab308]/20' : 'border-white/5 hover:border-white/20'}`}>
                                   <div className="flex-1 flex items-center justify-center p-2">
