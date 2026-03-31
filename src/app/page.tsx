@@ -24,17 +24,12 @@ import {
   Film,
   CheckCircle2,
   Globe,
-  Copy,
-  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -287,7 +282,7 @@ export default function ThemeMakerStudio() {
               className={`w-full justify-between mb-1 border-b border-white/5 rounded-none ${
                 activeScreenId === GLOBAL_ID
                   ? "bg-[#3b82f6]/15 text-[#60a5fa]"
-                  : "text-white/50 hover:text-white/80 hover:bg-white/5"
+                  : "text-white/70 hover:text-white hover:bg-white/5"
               }`}
             >
               <div className="flex items-center gap-1.5">
@@ -324,7 +319,7 @@ export default function ThemeMakerStudio() {
                         className={`w-full justify-between ${
                           active
                             ? "bg-[#eab308]/15 text-[#eab308]"
-                            : "text-white/55 hover:text-white/80 hover:bg-white/5"
+                            : "text-white/80 hover:text-white hover:bg-white/10"
                         }`}
                       >
                         <span className="truncate">{s.label}</span>
@@ -371,7 +366,7 @@ export default function ThemeMakerStudio() {
                       className={`text-[10px] font-medium ${
                         activeSubAsset === sa.name
                           ? "!bg-[#eab308] !text-[#3a2900] !border-[#eab308]"
-                          : `${hasSrc ? "text-green-400/70 border-green-500/30" : "text-white/40 border-white/10"} hover:text-white/70`
+                          : `${hasSrc ? "text-green-400 border-green-500/50" : "text-white/70 border-white/20"} hover:text-white hover:border-white/40`
                       }`}
                     >
                       {sa.label}
@@ -649,7 +644,7 @@ export default function ThemeMakerStudio() {
 
           <div className="flex-1 overflow-y-auto">
             {/* Wallpaper section */}
-            <section className="px-3 py-3 border-b border-white/5">
+            <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
               <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">
                 {activeSubAsset ? `Wallpaper · "${activeSubAsset}"` : "Wallpaper"}
               </p>
@@ -679,16 +674,16 @@ export default function ThemeMakerStudio() {
                   ? setScreenSubAsset(activeScreenId, activeSubAsset, null)
                   : setScreenWallpaper(activeScreenId, null)
                 }
-                className="mt-1.5 w-full text-[10px] text-red-400/60 hover:text-red-400 justify-center"
+                className="mt-1.5 w-full text-[10px] text-red-400 hover:text-red-300 justify-center"
               >
                 Remove wallpaper
               </Button>
               )}
-            </section>
+            </Card>
 
             {/* Sub-assets list (muxlaunch) */}
             {def?.hasSubAssets && def.subAssets && (
-              <section className="px-3 py-3 border-b border-white/5">
+              <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
                 <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">Sub-Assets</p>
                 <div className="space-y-1">
                   {def.subAssets.map((sa) => {
@@ -715,7 +710,7 @@ export default function ThemeMakerStudio() {
                               setActiveSubAsset(sa.name);
                               setTimeout(() => subAssetInputRef.current?.click(), 50);
                             }}
-                            className="text-white/20 hover:text-white/60"
+                            className="text-white/50 hover:text-white"
                           >
                             <Upload className="w-3 h-3" />
                           </Button>
@@ -727,7 +722,7 @@ export default function ThemeMakerStudio() {
                               e.stopPropagation();
                               setScreenSubAsset(activeScreenId, sa.name, null);
                             }}
-                            className="text-red-400/40 hover:text-red-400/80"
+                            className="text-red-400/70 hover:text-red-300"
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -737,12 +732,12 @@ export default function ThemeMakerStudio() {
                     );
                   })}
                 </div>
-              </section>
+              </Card>
             )}
 
             {/* Glyphs section (screens with sub-assets, e.g. muxlaunch) */}
             {def?.hasSubAssets && def.subAssets && screen.glyphs.length > 0 && (
-              <section className="px-3 py-3 border-b border-white/5">
+              <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
                 <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">Glyphs (glyph/{def.id}/)</p>
                 <div className="space-y-1">
                   {screen.glyphs.map((g) => (
@@ -755,7 +750,7 @@ export default function ThemeMakerStudio() {
                           ? <img src={g.src} alt={g.name} className="w-5 h-5 object-contain rounded" />
                           : <div className="w-5 h-5 rounded bg-white/8 border border-dashed border-white/15" />
                         }
-                        <span className={`text-xs ${g.src ? "text-white/70" : "text-white/30"}`}>{g.label}</span>
+                        <span className={`text-xs ${g.src ? "text-white/80" : "text-white/50"}`}>{g.label}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         {g.src && <CheckCircle2 className="w-3 h-3 text-green-500/70" />}
@@ -763,7 +758,7 @@ export default function ThemeMakerStudio() {
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => { setActiveGlyph(g.name); setTimeout(() => glyphInputRef.current?.click(), 50); }}
-                          className="text-white/20 hover:text-white/60"
+                          className="text-white/50 hover:text-white"
                           title={`Upload ${g.name}.png`}
                         >
                           <Upload className="w-3 h-3" />
@@ -773,7 +768,7 @@ export default function ThemeMakerStudio() {
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => setScreenGlyph(activeScreenId, g.name, null)}
-                          className="text-red-400/40 hover:text-red-400/80"
+                          className="text-red-400/70 hover:text-red-300"
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -782,11 +777,11 @@ export default function ThemeMakerStudio() {
                     </div>
                   ))}
                 </div>
-              </section>
+              </Card>
             )}
 
             {/* Static Image section (image/static/{screenid}.png) */}
-            <section className="px-3 py-3 border-b border-white/5">
+            <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
               <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">Static Image</p>
               <div
                 onClick={() => staticImageInputRef.current?.click()}
@@ -806,15 +801,15 @@ export default function ThemeMakerStudio() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setScreenStaticImage(activeScreenId, null)}
-                className="mt-1 w-full text-[10px] text-red-400/60 hover:text-red-400 justify-center"
+                className="mt-1 w-full text-[10px] text-red-400 hover:text-red-300 justify-center"
               >
                 Remove static image
               </Button>
               )}
-            </section>
+            </Card>
 
             {/* Scheme section */}
-            <section className="px-3 py-3 border-b border-white/5">
+            <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
               <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-3">Scheme</p>
 
               {/* ── reutilizável inline: color + alpha slider ── */}
@@ -824,7 +819,7 @@ export default function ThemeMakerStudio() {
 
                 {/* Height */}
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Height</label>
+                  <Label className="text-[10px] text-white/40 w-20">Height</Label>
                   <div className="flex items-center gap-1.5">
                     <Slider
                       value={[sc.HEADER_HEIGHT]}
@@ -916,7 +911,7 @@ export default function ThemeMakerStudio() {
 
                 {/* Height */}
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-white/40 w-20">Height</label>
+                  <Label className="text-[10px] text-white/40 w-20">Height</Label>
                   <div className="flex items-center gap-1.5">
                     <Slider
                       value={[sc.FOOTER_HEIGHT]}
@@ -1004,11 +999,11 @@ export default function ThemeMakerStudio() {
                 {/* Default text */}
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Default text</label>
-                  <input
+                  <Input
                     type="color"
                     value={`#${sc.LIST_DEFAULT_TEXT}`}
                     onChange={(e) => updateScreenScheme(activeScreenId, { LIST_DEFAULT_TEXT: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer border border-white/10 bg-transparent p-0"
+                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -1028,11 +1023,11 @@ export default function ThemeMakerStudio() {
                 {/* Focus text */}
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-white/40 w-20">Focus text</label>
-                  <input
+                  <Input
                     type="color"
                     value={`#${sc.LIST_FOCUS_TEXT}`}
                     onChange={(e) => updateScreenScheme(activeScreenId, { LIST_FOCUS_TEXT: e.target.value.slice(1).toUpperCase() })}
-                    className="w-8 h-6 rounded cursor-pointer border border-white/10 bg-transparent p-0"
+                    className="w-8 h-6 rounded cursor-pointer !border-white/10 !bg-transparent p-0"
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -1049,10 +1044,10 @@ export default function ThemeMakerStudio() {
                   </div>
                 </div>
               </div>
-            </section>
+            </Card>
 
             {/* Overlay section */}
-            <section className="px-3 py-3 border-b border-white/5">
+            <Card className="!bg-transparent !border-0 !border-b !border-white/5 !rounded-none !p-3">
               <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-2">Overlay (HUD)</p>
               <div
                 onClick={() => overlayInputRef.current?.click()}
@@ -1077,9 +1072,9 @@ export default function ThemeMakerStudio() {
                 Remove overlay
               </Button>
               )}
-            </section>
+            </Card>
             {/* Layers section */}
-            <section className="px-3 py-3">
+            <Card className="!bg-transparent !border-0 !rounded-none !p-3">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider">Extra Layers</p>
                 <Button
@@ -1118,10 +1113,10 @@ export default function ThemeMakerStudio() {
                   </div>
                 ))}
                 {screen.layers.length === 0 && (
-                  <p className="text-[10px] text-white/20 text-center py-3">No layers. Click "Add" to upload images.</p>
+                  <p className="text-[10px] text-white/20 text-center py-3">No layers. Click &quot;Add&quot; to upload images.</p>
                 )}
               </div>
-            </section>
+            </Card>
           </div>
         </aside>
 
