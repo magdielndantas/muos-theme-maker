@@ -25,7 +25,7 @@ function buildInitialScreens() {
 function createEmptyResolutionData(): ResolutionData {
   return {
     screens: buildInitialScreens(),
-    globalScheme: { ...DEFAULT_SCHEME },
+    globalScheme: {} as any, // Only collect overrides during initial parse
     globalOverlay: null,
     globalGlyphs: {
       header: {},
@@ -48,7 +48,6 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
     const resMap: Record<string, ResolutionData> = {};
 
     const getResFromPath = (path: string): string => {
-      // Matches resolution pattern even if nested (e.g., Theme/640x480/...)
       const match = path.match(/([0-9]+x[0-9]+)/);
       return match ? match[1] : "640x480";
     };
@@ -60,12 +59,12 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
 
     const isImage = (path: string) => /\.(png|jpg|jpeg|bmp)$/i.test(path);
     const getBase64 = async (f: JSZip.JSZipObject): Promise<string> => {
-      const blob = await f.async("blob");
-      return new Promise<string>((res) => {
-        const reader = new FileReader();
-        reader.onloadend = () => res(reader.result as string);
-        reader.readAsDataURL(blob);
-      });
+      const b64 = await f.async("base64");
+      const ext = f.name.split('.').pop()?.toLowerCase();
+      let mime = "image/png";
+      if (ext === "jpg" || ext === "jpeg") mime = "image/jpeg";
+      if (ext === "bmp") mime = "image/bmp";
+      return `data:${mime};base64,${b64}`;
     };
 
     const promises: Promise<void>[] = [];
@@ -79,7 +78,6 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
       const res = getResFromPath(normPath);
       const resData = getResData(res);
 
-      // Root-level scheme/global.ini — applies to all resolutions
       if (normPath.endsWith(".ini") && (normPath.match(/^[^\/]*\/scheme\/global\.ini$/) || normPath === "scheme/global.ini")) {
         const content = await file.async("string");
         const parsed = parseIni(content);
@@ -87,7 +85,6 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
         continue;
       }
 
-      // --- Process INIs (Schemes) ---
       if (normPath.endsWith(".ini") && normPath.includes("scheme/")) {
         const content = await file.async("string");
         const parsed = parseIni(content);
@@ -103,32 +100,24 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
         continue;
       }
 
-      // --- Process Images ---
       if (isImage(normPath)) {
         if (normPath.includes("image/overlay.png")) {
           promises.push(getBase64(file).then(src => { resData.globalOverlay = src; }));
           continue;
         }
-
-        // Boot logo
         if (normPath.endsWith("bootlogo.bmp") || normPath.endsWith("bootlogo.png")) {
           promises.push(getBase64(file).then(src => { resData.bootLogo = src; }));
           continue;
         }
-
-        // Preview image
         if (normPath.match(/\/preview\.(png|jpg|jpeg)$/)) {
           promises.push(getBase64(file).then(src => { resData.previewImage = src; }));
           continue;
         }
-
-        // wall/default.png — fallback global wallpaper
         const wallDefaultMatch = normPath.match(/image\/wall\/default\.(png|jpg|jpeg|bmp)$/);
         if (wallDefaultMatch) {
           promises.push(getBase64(file).then(src => { resData.defaultWallpaper = src; }));
           continue;
         }
-
         const wallMatch = normPath.match(/image\/wall\/([^\/]+)\.(png|jpg|jpeg|bmp)$/);
         if (wallMatch) {
           const screenId = wallMatch[1];
@@ -136,7 +125,6 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
           if (screen) promises.push(getBase64(file).then(src => { screen.wallpaper = src; }));
           continue;
         }
-
         const staticMatch = normPath.match(/image\/static\/([^\/]+)\.(png|jpg|jpeg|bmp)$/);
         if (staticMatch) {
           const screenId = staticMatch[1];
@@ -144,7 +132,6 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
           if (screen) promises.push(getBase64(file).then(src => { screen.staticImage = src; }));
           continue;
         }
-
         const glyphMatch = normPath.match(/glyph\/([^\/]+)\/([^\/]+)\.(png|jpg|jpeg|bmp)$/);
         if (glyphMatch) {
           const category = glyphMatch[1];
@@ -162,7 +149,6 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
           }
           continue;
         }
-
         const subAssetMatch = normPath.match(/image\/wall\/([^\/]+)\/([^\/]+)\.(png|jpg|jpeg|bmp)$/);
         if (subAssetMatch) {
           const screenId = subAssetMatch[1];
@@ -176,7 +162,6 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
         }
       }
 
-      // --- Process Fonts ---
       const fontSlotMatch = normPath.match(/\/font\/(header|footer|panel)\/default\.bin$/);
       if (fontSlotMatch) {
         const slot = fontSlotMatch[1] as "header" | "footer" | "panel";
@@ -188,8 +173,6 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
         promises.push(getBase64(file).then(src => { resData.fonts.default = src; }));
         continue;
       }
-
-      // --- Process Sounds ---
       const soundMatch = normPath.match(/\/sound\/([^\/]+)\.(wav|mp3|ogg)$/);
       if (soundMatch) {
         const name = soundMatch[1];
@@ -200,24 +183,18 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
 
     await Promise.all(promises);
 
-    // Apply root-level global scheme to all resolutions
-    if (Object.keys(rootGlobalScheme).length > 0) {
-      for (const data of Object.values(resMap)) {
-        data.globalScheme = { ...data.globalScheme, ...rootGlobalScheme };
-      }
+    for (const data of Object.values(resMap)) {
+      data.globalScheme = { 
+        ...DEFAULT_SCHEME, 
+        ...rootGlobalScheme, 
+        ...data.globalScheme 
+      };
     }
 
-    // Import metadata files
-    const nameTxt = files.find(f => f.name.toLowerCase() === "name.txt");
+    const nameTxt = files.find(f => f.name.toLowerCase() === "name.txt" || f.name.toLowerCase() === "theme_name.txt");
     if (nameTxt) {
       const content = await nameTxt.async("string");
       store.setThemeName(content.trim());
-    } else {
-      const themeNameTxt = files.find(f => f.name.toLowerCase() === "theme_name.txt");
-      if (themeNameTxt) {
-        const content = await themeNameTxt.async("string");
-        store.setThemeName(content.trim());
-      }
     }
 
     const creditsTxt = files.find(f => f.name.toLowerCase() === "credits.txt");
@@ -243,8 +220,8 @@ export const importThemeFromZip = async (file: File): Promise<boolean> => {
     }
 
     return true;
-  } catch (err) {
-    console.error("Theme Import Error:", err);
+  } catch (error) {
+    console.error("Theme import failed:", error);
     return false;
   }
 };
@@ -262,11 +239,12 @@ function parseIni(content: string): Partial<ScreenScheme> {
     }
 
     const [rawKey, ...valParts] = trimmed.split("=");
-    const val = valParts.join("=").trim();
-    if (rawKey && val) {
+    const rawVal = valParts.join("=").split(";")[0].trim();
+    
+    if (rawKey && rawVal) {
       let cleanKey = rawKey.trim().toUpperCase();
+      const val = rawVal;
 
-      // Exhaustive Mapping Logic
       if (currentSection === "header") {
         if (cleanKey === "HEIGHT") cleanKey = "HEADER_HEIGHT";
         if (cleanKey === "BACKGROUND") cleanKey = "HEADER_BACKGROUND";
@@ -300,46 +278,73 @@ function parseIni(content: string): Partial<ScreenScheme> {
         if (cleanKey === "PADDING_LEFT") cleanKey = "STATUS_PADDING_LEFT";
         if (cleanKey === "PADDING_RIGHT") cleanKey = "STATUS_PADDING_RIGHT";
         if (cleanKey === "ALIGN") cleanKey = "STATUS_ALIGN";
-      } else if (currentSection === "misc") {
-        if (cleanKey === "NAVIGATION_TYPE") cleanKey = "MISC_NAVIGATION_TYPE";
       } else if (currentSection === "grid") {
-        if (cleanKey === "BACKGROUND_ALPHA") cleanKey = "GRID_BACKGROUND_ALPHA";
+        if (cleanKey === "ACTIVE") cleanKey = "GRID_ACTIVE";
         if (cleanKey === "LOCATION_X") cleanKey = "GRID_LOCATION_X";
         if (cleanKey === "LOCATION_Y") cleanKey = "GRID_LOCATION_Y";
-        if (cleanKey === "NAVIGATION_TYPE") cleanKey = "GRID_NAVIGATION_TYPE";
-        if (cleanKey === "ROW_COUNT") cleanKey = "GRID_ROW_COUNT";
+        if (cleanKey === "COLUMN_WIDTH") cleanKey = "GRID_COLUMN_WIDTH";
+        if (cleanKey === "ROW_HEIGHT") cleanKey = "GRID_ROW_HEIGHT";
+        if (cleanKey === "COLUMN_PADDING") cleanKey = "GRID_COLUMN_PADDING";
+        if (cleanKey === "ROW_PADDING") cleanKey = "GRID_ROW_PADDING";
+        if (cleanKey === "ALIGNMENT") cleanKey = "GRID_ALIGNMENT";
         if (cleanKey === "COLUMN_COUNT") cleanKey = "GRID_COLUMN_COUNT";
-        
-        const row = Number(val);
-        if (cleanKey === "GRID_ROW_COUNT" && row > 0) parsedScheme.GRID_ACTIVE = 1;
+        if (cleanKey === "ROW_COUNT") cleanKey = "GRID_ROW_COUNT";
+        if (cleanKey === "NAVIGATION_TYPE") cleanKey = "GRID_NAVIGATION_TYPE";
+
+        const numVal = Number(val);
+        if (!isNaN(numVal)) {
+          if (cleanKey === "GRID_ACTIVE") {
+            parsedScheme.GRID_ACTIVE = numVal;
+          } else if ((cleanKey === "GRID_ROW_COUNT" || cleanKey === "GRID_COLUMN_COUNT") && numVal > 0) {
+            if (parsedScheme.GRID_ACTIVE === undefined) parsedScheme.GRID_ACTIVE = 1;
+          }
+        }
       } else if (currentSection === "navigation") {
         if (cleanKey === "ALIGNMENT") cleanKey = "NAVIGATION_ALIGNMENT";
         if (cleanKey === "SPACING") cleanKey = "NAV_SPACING";
+        if (cleanKey === "ICON_SIZE") cleanKey = "NAVIGATION_ICON_SIZE";
+        if (!cleanKey.startsWith("NAV_") && !cleanKey.startsWith("NAVIGATION_")) cleanKey = `NAV_${cleanKey}`;
+      } else if (currentSection === "font") {
+        if (!cleanKey.startsWith("FONT_")) cleanKey = `FONT_${cleanKey}`;
+      } else if (currentSection === "misc") {
+        if (cleanKey === "NAVIGATION_TYPE") cleanKey = "MISC_NAVIGATION_TYPE";
+        if (cleanKey === "PADDING_LEFT") cleanKey = "CONTENT_PADDING_LEFT";
+        if (cleanKey === "PADDING_TOP") cleanKey = "CONTENT_PADDING_TOP";
+        if (cleanKey === "WIDTH") cleanKey = "CONTENT_WIDTH";
+        if (cleanKey === "HEIGHT") cleanKey = "CONTENT_HEIGHT";
+        if (cleanKey === "ALIGNMENT") cleanKey = "CONTENT_ALIGNMENT";
+        
+        const valNum = Number(val);
+        if (cleanKey === "MISC_NAVIGATION_TYPE" && valNum >= 1) {
+          if (parsedScheme.GRID_ACTIVE === undefined) parsedScheme.GRID_ACTIVE = 1;
+        }
       } else if (currentSection === "terminal") {
         if (cleanKey === "BACKGROUND") cleanKey = "TERMINAL_BACKGROUND";
         if (cleanKey === "FOREGROUND") cleanKey = "TERMINAL_FOREGROUND";
+        if (!cleanKey.startsWith("TERMINAL_")) cleanKey = `TERMINAL_${cleanKey}`;
       } else if (currentSection === "counter") {
-        if (cleanKey === "BORDER_COLOUR") cleanKey = "COUNTER_BORDER_COLOUR";
-        if (cleanKey === "BACKGROUND_GRADIENT") cleanKey = "COUNTER_BACKGROUND_GRADIENT";
-      } else if (currentSection === "roll") {
-        // ROLL_* keys map directly — ROLL_TEXT, ROLL_BACKGROUND, ROLL_SELECT_TEXT, etc.
-      } else if (currentSection === "animation") {
-        if (cleanKey === "ANIMATION_DELAY") cleanKey = "ANIMATION_DELAY";
-        if (cleanKey === "ANIMATION_REPEAT") cleanKey = "ANIMATION_REPEAT";
-      } else if (currentSection === "list") {
-        // LIST_* keys map directly
+        if (!cleanKey.startsWith("COUNTER_")) cleanKey = `COUNTER_${cleanKey}`;
       } else if (currentSection === "bar") {
-        // BAR_* keys map directly
+        if (!cleanKey.startsWith("BAR_") && !cleanKey.startsWith("PANEL_")) cleanKey = `BAR_${cleanKey}`;
       } else if (currentSection === "image_list") {
-        // IMAGE_LIST_* and IMAGE_PREVIEW_* keys map directly
-      } else if (currentSection === "charging") {
-        // CHARGER_* keys map directly
-      } else if (currentSection === "verbose") {
-        // VERBOSE_BOOT_* keys map directly
+        if (!cleanKey.startsWith("IMAGE_LIST_")) cleanKey = `IMAGE_LIST_${cleanKey}`;
+      } else if (currentSection === "image_preview") {
+        if (!cleanKey.startsWith("IMAGE_PREVIEW_")) cleanKey = `IMAGE_PREVIEW_${cleanKey}`;
+      } else if (currentSection === "background") {
+        if (!cleanKey.startsWith("BACKGROUND_")) cleanKey = `BACKGROUND_${cleanKey}`;
+      } else if (currentSection === "keyboard") {
+        if (!cleanKey.startsWith("OSK_")) cleanKey = `OSK_${cleanKey}`;
+      } else if (currentSection === "help") {
+        if (!cleanKey.startsWith("HELP_")) cleanKey = `HELP_${cleanKey}`;
+      } else if (currentSection === "notification") {
+        if (!cleanKey.startsWith("MSG_")) cleanKey = `MSG_${cleanKey}`;
+      } else if (currentSection === "date") {
+        if (!cleanKey.startsWith("DATETIME_")) cleanKey = `DATETIME_${cleanKey}`;
+      } else if (currentSection === "status") {
+        if (!cleanKey.startsWith("STATUS_")) cleanKey = `STATUS_${cleanKey}`;
       }
 
       const typedKey = cleanKey as keyof ScreenScheme;
-
       if (typedKey in DEFAULT_SCHEME) {
         const expectedType = typeof DEFAULT_SCHEME[typedKey];
         if (expectedType === "number") {

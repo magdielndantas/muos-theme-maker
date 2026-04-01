@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   MUOS_SCREENS,
   MuosScreenDef,
@@ -129,6 +130,7 @@ export type ScreenScheme = {
   CELL_DEFAULT_IMAGE_ALPHA: number;
   CELL_DEFAULT_IMAGE_RECOLOUR: string;
   CELL_DEFAULT_IMAGE_RECOLOUR_ALPHA: number;
+  CELL_DEFAULT_TEXT: string;
   CELL_DEFAULT_TEXT_ALPHA: number;
   CELL_FOCUS_BACKGROUND: string;
   CELL_FOCUS_BACKGROUND_ALPHA: number;
@@ -481,6 +483,7 @@ export const DEFAULT_SCHEME: ScreenScheme = {
   CELL_DEFAULT_IMAGE_ALPHA: 255,
   CELL_DEFAULT_IMAGE_RECOLOUR: "FFFFFF",
   CELL_DEFAULT_IMAGE_RECOLOUR_ALPHA: 0,
+  CELL_DEFAULT_TEXT: "FFFFFF",
   CELL_DEFAULT_TEXT_ALPHA: 180,
   CELL_FOCUS_BACKGROUND: "FFFFFF",
   CELL_FOCUS_BACKGROUND_ALPHA: 50,
@@ -768,401 +771,392 @@ interface ThemeState {
   setSound: (name: string, src: string | null) => void;
 }
 
-export const useThemeStore = create<ThemeState>((set, get) => ({
-  resolutions: {
-    "640x480": createResolutionData(),
-  },
-  activeScreenId: "muxlaunch",
-  selectedLayerId: null,
-  themeName: "",
-  themeCredits: "",
-  themeVersion: "",
-  resolution: "640x480",
-
-  getActiveScreen: () => {
-    const { resolutions, resolution, activeScreenId } = get();
-    const data = resolutions[resolution] || resolutions["640x480"];
-    return data.screens.find((s) => s.id === activeScreenId) ?? data.screens[0];
-  },
-
-  getEffectiveScheme: (screenId) => {
-    const { resolutions, resolution } = get();
-    const data = resolutions[resolution] || resolutions["640x480"];
-    const sc = data.screens.find((s) => s.id === screenId);
-    if (!sc) return data.globalScheme;
-    return { ...data.globalScheme, ...sc.scheme };
-  },
-
-  getSchemeOverrideKeys: (screenId) => {
-    const { resolutions, resolution } = get();
-    const data = resolutions[resolution] || resolutions["640x480"];
-    const sc = data.screens.find((s) => s.id === screenId);
-    if (!sc) return new Set();
-    const keys = new Set<keyof ScreenScheme>();
-    (Object.keys(sc.scheme) as (keyof ScreenScheme)[]).forEach((k) => {
-      if (sc.scheme[k] !== data.globalScheme[k]) {
-        keys.add(k);
-      }
-    });
-    return keys;
-  },
-
-  setThemeName: (themeName) => set({ themeName }),
-  setThemeCredits: (themeCredits) => set({ themeCredits }),
-  setThemeVersion: (themeVersion) => set({ themeVersion }),
-  setResolution: (resolution) => set((state) => {
-    if (!state.resolutions[resolution]) {
-      return { 
-        resolution, 
-        resolutions: { ...state.resolutions, [resolution]: createResolutionData() } 
-      };
-    }
-    return { resolution };
-  }),
-
-  cloneResolution: (from: string, to: string) => set((state) => {
-    const fromData = state.resolutions[from];
-    if (!fromData) return state;
-    // Deep clone basic objects
-    const newData: ResolutionData = JSON.parse(JSON.stringify(fromData));
-    return {
-      resolutions: { ...state.resolutions, [to]: newData }
-    };
-  }),
-
-  setGlobalOverlay: (globalOverlay) =>
-    set((state) => ({
+export const useThemeStore = create<ThemeState>()(
+  persist(
+    (set, get) => ({
       resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          globalOverlay,
-        },
+        "640x480": createResolutionData(),
       },
-    })),
+      activeScreenId: "muxlaunch",
+      selectedLayerId: null,
+      themeName: "Untitled Theme",
+      themeCredits: "",
+      themeVersion: "1.0.0",
+      resolution: "640x480",
 
-  setGlobalScheme: (updates) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          globalScheme: { ...state.resolutions[state.resolution].globalScheme, ...updates },
-        },
+      getActiveScreen: () => {
+        const { resolutions, resolution, activeScreenId } = get();
+        const data = resolutions[resolution] || resolutions["640x480"];
+        return data.screens.find((s) => s.id === activeScreenId) ?? data.screens[0];
       },
-    })),
 
-  setGlobalGlyph: (category, name, src) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          globalGlyphs: {
-            ...state.resolutions[state.resolution].globalGlyphs,
-            [category]: {
-              ...state.resolutions[state.resolution].globalGlyphs[category],
-              [name]: src,
+      getEffectiveScheme: (screenId) => {
+        const { resolutions, resolution } = get();
+        const data = resolutions[resolution] || resolutions["640x480"];
+        const sc = data.screens.find((s) => s.id === screenId);
+        if (!sc) return data.globalScheme;
+        return { ...data.globalScheme, ...sc.scheme };
+      },
+
+      getSchemeOverrideKeys: (screenId) => {
+        const { resolutions, resolution } = get();
+        const data = resolutions[resolution] || resolutions["640x480"];
+        const sc = data.screens.find((s) => s.id === screenId);
+        if (!sc) return new Set();
+        const keys = new Set<keyof ScreenScheme>();
+        (Object.keys(sc.scheme) as (keyof ScreenScheme)[]).forEach((k) => {
+          if (sc.scheme[k] !== data.globalScheme[k]) {
+            keys.add(k);
+          }
+        });
+        return keys;
+      },
+
+      setThemeName: (themeName) => set({ themeName }),
+      setThemeCredits: (themeCredits) => set({ themeCredits }),
+      setThemeVersion: (themeVersion) => set({ themeVersion }),
+      setResolution: (resolution) => set((state) => {
+        if (!state.resolutions[resolution]) {
+          return { 
+            resolution, 
+            resolutions: { ...state.resolutions, [resolution]: createResolutionData() } 
+          };
+        }
+        return { resolution };
+      }),
+
+      cloneResolution: (from: string, to: string) => set((state) => {
+        const fromData = state.resolutions[from];
+        if (!fromData) return state;
+        const newData: ResolutionData = JSON.parse(JSON.stringify(fromData));
+        return {
+          resolutions: { ...state.resolutions, [to]: newData }
+        };
+      }),
+
+      setGlobalOverlay: (globalOverlay) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              globalOverlay,
             },
           },
-        },
-      },
-    })),
+        })),
 
-  applyGlobalToAll: () =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          screens: state.resolutions[state.resolution].screens.map((s) => ({ ...s, scheme: {} })),
-        },
-      },
-    })),
+      setGlobalScheme: (updates) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              globalScheme: { ...state.resolutions[state.resolution].globalScheme, ...updates },
+            },
+          },
+        })),
 
-  copySchemeToScreen: (fromId, toId) =>
-    set((state) => {
-      const data = state.resolutions[state.resolution];
-      const fromScreen = data.screens.find((s) => s.id === fromId);
-      if (!fromScreen) return state;
-      return {
+      setGlobalGlyph: (category, name, src) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              globalGlyphs: {
+                ...state.resolutions[state.resolution].globalGlyphs,
+                [category]: {
+                  ...state.resolutions[state.resolution].globalGlyphs[category],
+                  [name]: src,
+                },
+              },
+            },
+          },
+        })),
+
+      applyGlobalToAll: () =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              screens: state.resolutions[state.resolution].screens.map((s) => ({ ...s, scheme: {} })),
+            },
+          },
+        })),
+
+      copySchemeToScreen: (fromId, toId) =>
+        set((state) => {
+          const data = state.resolutions[state.resolution];
+          const fromScreen = data.screens.find((s) => s.id === fromId);
+          if (!fromScreen) return state;
+          return {
+            resolutions: {
+              ...state.resolutions,
+              [state.resolution]: {
+                ...data,
+                screens: data.screens.map((s) =>
+                  s.id === toId ? { ...s, scheme: { ...fromScreen.scheme } } : s
+                ),
+              },
+            },
+          };
+        }),
+
+      resetScreenSchemeToGlobal: (screenId) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              screens: state.resolutions[state.resolution].screens.map((s) =>
+                s.id === screenId ? { ...s, scheme: {} } : s
+              ),
+            },
+          },
+        })),
+
+      setActiveScreenId: (id) => set({ activeScreenId: id, selectedLayerId: null }),
+
+      setScreenWallpaper: (screenId, src) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              screens: state.resolutions[state.resolution].screens.map((s) =>
+                s.id === screenId ? { ...s, wallpaper: src } : s
+              ),
+            },
+          },
+        })),
+
+      setScreenOverlay: (screenId, src) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              screens: state.resolutions[state.resolution].screens.map((s) =>
+                s.id === screenId ? { ...s, overlay: src } : s
+              ),
+            },
+          },
+        })),
+
+      setScreenSubAsset: (screenId, name, src) =>
+        set((state) => {
+          const data = state.resolutions[state.resolution];
+          return {
+            resolutions: {
+              ...state.resolutions,
+              [state.resolution]: {
+                ...data,
+                screens: data.screens.map((s) =>
+                  s.id === screenId
+                    ? {
+                        ...s,
+                        subAssets: s.subAssets.map((sa) =>
+                          sa.name === name ? { ...sa, src } : sa
+                        ),
+                      }
+                    : s
+                ),
+              },
+            },
+          };
+        }),
+
+      setScreenStaticImage: (screenId, src) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              screens: state.resolutions[state.resolution].screens.map((s) =>
+                s.id === screenId ? { ...s, staticImage: src } : s
+              ),
+            },
+          },
+        })),
+
+      setScreenGlyph: (screenId, name, src) =>
+        set((state) => {
+          const data = state.resolutions[state.resolution];
+          return {
+            resolutions: {
+              ...state.resolutions,
+              [state.resolution]: {
+                ...data,
+                screens: data.screens.map((s) =>
+                  s.id === screenId
+                    ? {
+                        ...s,
+                        glyphs: s.glyphs.map((g) =>
+                          g.name === name ? { ...g, src } : g
+                        ),
+                      }
+                    : s
+                ),
+              },
+            },
+          };
+        }),
+
+      updateScreenScheme: (screenId, updates) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              screens: state.resolutions[state.resolution].screens.map((s) =>
+                s.id === screenId ? { ...s, scheme: { ...s.scheme, ...updates } } : s
+              ),
+            },
+          },
+        })),
+
+      addLayer: (screenId, layer) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              screens: state.resolutions[state.resolution].screens.map((s) =>
+                s.id === screenId
+                  ? {
+                      ...s,
+                      layers: [
+                        ...s.layers,
+                        { ...layer, id: crypto.randomUUID(), zIndex: s.layers.length },
+                      ],
+                    }
+                  : s
+              ),
+            },
+          },
+        })),
+
+      updateLayer: (screenId, layerId, updates) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              screens: state.resolutions[state.resolution].screens.map((s) =>
+                s.id === screenId
+                  ? {
+                      ...s,
+                      layers: s.layers.map((l) =>
+                        l.id === layerId ? { ...l, ...updates } : l
+                      ),
+                    }
+                  : s
+              ),
+            },
+          },
+        })),
+
+      removeLayer: (screenId, layerId) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              screens: state.resolutions[state.resolution].screens.map((s) =>
+                s.id === screenId
+                  ? {
+                      ...s,
+                      layers: s.layers.filter((l) => l.id !== layerId),
+                    }
+                  : s
+              ),
+            },
+          },
+        })),
+
+      setSelectedLayerId: (id) => set({ selectedLayerId: id }),
+
+      importScreens: (screens) => set((state) => ({
         resolutions: {
           ...state.resolutions,
           [state.resolution]: {
-            ...data,
-            screens: data.screens.map((s) =>
-              s.id === toId ? { ...s, scheme: { ...fromScreen.scheme } } : s
-            ),
-          },
-        },
-      };
-    }),
+            ...state.resolutions[state.resolution],
+            screens
+          }
+        }
+      })),
 
-  resetScreenSchemeToGlobal: (screenId) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          screens: state.resolutions[state.resolution].screens.map((s) =>
-            s.id === screenId ? { ...s, scheme: {} } : s
-          ),
-        },
-      },
-    })),
-
-  setActiveScreenId: (id) => set({ activeScreenId: id, selectedLayerId: null }),
-
-  setScreenWallpaper: (screenId, src) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          screens: state.resolutions[state.resolution].screens.map((s) =>
-            s.id === screenId ? { ...s, wallpaper: src } : s
-          ),
-        },
-      },
-    })),
-
-  setScreenOverlay: (screenId, src) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          screens: state.resolutions[state.resolution].screens.map((s) =>
-            s.id === screenId ? { ...s, overlay: src } : s
-          ),
-        },
-      },
-    })),
-
-  setScreenSubAsset: (screenId, name, src) =>
-    set((state) => {
-      const data = state.resolutions[state.resolution];
-      return {
+      importResolution: (res: string, data: ResolutionData) => set((state) => ({
         resolutions: {
           ...state.resolutions,
-          [state.resolution]: {
-            ...data,
-            screens: data.screens.map((s) =>
-              s.id === screenId
-                ? {
-                    ...s,
-                    subAssets: s.subAssets.map((sa) =>
-                      sa.name === name ? { ...sa, src } : sa
-                    ),
-                  }
-                : s
-            ),
+          [res]: data
+        },
+        resolution: res
+      })),
+
+      setDefaultWallpaper: (defaultWallpaper) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              defaultWallpaper,
+            },
           },
-        },
-      };
-    }),
+        })),
 
-  setScreenStaticImage: (screenId, src) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          screens: state.resolutions[state.resolution].screens.map((s) =>
-            s.id === screenId ? { ...s, staticImage: src } : s
-          ),
-        },
-      },
-    })),
-
-  setScreenGlyph: (screenId, name, src) =>
-    set((state) => {
-      const data = state.resolutions[state.resolution];
-      return {
-        resolutions: {
-          ...state.resolutions,
-          [state.resolution]: {
-            ...data,
-            screens: data.screens.map((s) =>
-              s.id === screenId
-                ? {
-                    ...s,
-                    glyphs: s.glyphs.map((g) =>
-                      g.name === name ? { ...g, src } : g
-                    ),
-                  }
-                : s
-            ),
+      setBootLogo: (bootLogo) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              bootLogo,
+            },
           },
-        },
-      };
-    }),
+        })),
 
-  updateScreenScheme: (screenId, updates) =>
-    set((state) => {
-      const data = state.resolutions[state.resolution];
-      return {
-        resolutions: {
-          ...state.resolutions,
-          [state.resolution]: {
-            ...data,
-            screens: data.screens.map((s) =>
-              s.id === screenId
-                ? { ...s, scheme: { ...s.scheme, ...updates } }
-                : s
-            ),
+      setPreviewImage: (previewImage) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              previewImage,
+            },
           },
-        },
-      };
-    }),
+        })),
 
-  addLayer: (screenId, layer) =>
-    set((state) => {
-      const data = state.resolutions[state.resolution];
-      return {
-        resolutions: {
-          ...state.resolutions,
-          [state.resolution]: {
-            ...data,
-            screens: data.screens.map((s) =>
-              s.id === screenId
-                ? {
-                    ...s,
-                    layers: [
-                      ...s.layers,
-                      { ...layer, id: crypto.randomUUID(), zIndex: s.layers.length },
-                    ],
-                  }
-                : s
-            ),
+      setFont: (slot, data) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              fonts: {
+                ...state.resolutions[state.resolution].fonts,
+                [slot]: data,
+              },
+            },
           },
-        },
-      };
-    }),
+        })),
 
-  updateLayer: (screenId, layerId, updates) =>
-    set((state) => {
-      const data = state.resolutions[state.resolution];
-      return {
-        resolutions: {
-          ...state.resolutions,
-          [state.resolution]: {
-            ...data,
-            screens: data.screens.map((s) =>
-              s.id === screenId
-                ? {
-                    ...s,
-                    layers: s.layers.map((l) =>
-                      l.id === layerId ? { ...l, ...updates } : l
-                    ),
-                  }
-                : s
-            ),
+      setSound: (name, src) =>
+        set((state) => ({
+          resolutions: {
+            ...state.resolutions,
+            [state.resolution]: {
+              ...state.resolutions[state.resolution],
+              sounds: {
+                ...state.resolutions[state.resolution].sounds,
+                [name]: src,
+              },
+            },
           },
-        },
-      };
+        })),
     }),
-
-  removeLayer: (screenId, layerId) =>
-    set((state) => {
-      const data = state.resolutions[state.resolution];
-      return {
-        resolutions: {
-          ...state.resolutions,
-          [state.resolution]: {
-            ...data,
-            screens: data.screens.map((s) =>
-              s.id === screenId
-                ? {
-                    ...s,
-                    layers: s.layers.filter((l) => l.id !== layerId),
-                  }
-                : s
-            ),
-          },
-        },
-        selectedLayerId: null,
-      };
-    }),
-
-  setSelectedLayerId: (id) => set({ selectedLayerId: id }),
-
-  importScreens: (screens) => set((state) => ({
-    resolutions: {
-      ...state.resolutions,
-      [state.resolution]: {
-        ...state.resolutions[state.resolution],
-        screens
-      }
+    {
+      name: "muos-theme-storage",
     }
-  })),
-
-  importResolution: (res: string, data: ResolutionData) => set((state) => ({
-    resolutions: {
-      ...state.resolutions,
-      [res]: data
-    },
-    resolution: res
-  })),
-
-  setDefaultWallpaper: (defaultWallpaper) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          defaultWallpaper,
-        },
-      },
-    })),
-
-  setBootLogo: (bootLogo) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          bootLogo,
-        },
-      },
-    })),
-
-  setPreviewImage: (previewImage) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          previewImage,
-        },
-      },
-    })),
-
-  setFont: (slot, data) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          fonts: {
-            ...state.resolutions[state.resolution].fonts,
-            [slot]: data,
-          },
-        },
-      },
-    })),
-
-  setSound: (name, src) =>
-    set((state) => ({
-      resolutions: {
-        ...state.resolutions,
-        [state.resolution]: {
-          ...state.resolutions[state.resolution],
-          sounds: {
-            ...state.resolutions[state.resolution].sounds,
-            [name]: src,
-          },
-        },
-      },
-    })),
-}));
+  )
+);
